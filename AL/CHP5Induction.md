@@ -10,7 +10,7 @@ SELECTIONSORT_REC和INSERTIONSORT_REC
 
 ### 5.2.1 选择排序
 
-对数组A[1...n]假设已有sort A[2…n]的方法. 则现在A[1...n]找到最小值，与A[1]交换后调用sort A[2…n]
+对数组A[1...n]假设已有sort A[2…n]的方法（靠后的n-1个元素）. 则现在A[1...n]找到最小值，与A[1]交换后调用sort A[2…n]
 
 过程sort(i)
 
@@ -46,4 +46,30 @@ sort(1)            //全局排序A[1...n]，调用sort(1)
   运行时间和比较次数是线性关系，故SELECTSORT_REC是Θ(n^2)的
 
 ### 5.2.2 插入排序
+
+与SELECTSORT相反，当输入A[1…n]时，归纳假设为已知A[1...n-1]的排序过程（前n-1个元素），则当问题扩展时，只需要把A[n]插入到何时位置，并完成数组结构调整
+
+```pseudocode
+def sort(i):
+	if i > 1 then
+		x <- A[i]
+		sort(i-1)
+		j <- i-1
+		while j>0 and A[j]>x  //倒叙查找
+			A[j+1]<-A[j]      //后移一位
+			j <- j-1          //逐步移动
+		end while
+		A[j+1] <- x           //插入最后一元素
+	end if
+end def
+sort(n)
+```
+
+全局排序A[1...n]，调用sort(n)
+
+复杂度分析：O(n^2) 最坏情况 完全逆序初始 o(n)最好情况 完全非降序初始
+
+## 5.3 基数排序
+
+
 
