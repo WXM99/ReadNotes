@@ -57,7 +57,7 @@ def sort(i):
 		j <- i-1
 		while j>0 and A[j]>x  //倒叙查找
 			A[j+1]<-A[j]      //后移一位
-			j <- j-1          //逐步移动
+			j <- j-1          //焦点转移
 		end while
 		A[j+1] <- x           //插入最后一元素
 	end if
@@ -71,5 +71,28 @@ sort(n)
 
 ## 5.3 基数排序
 
+从低位(底域)递归调用分发到桶在按序回收的操作
 
+RADIXSORT 
+待排表L={a1, a2, ..., an}, k个域
+
+```pseudocode
+for j <- i to k
+	new bk0[],bk1[]...bk9[] //为各个域准备空桶
+	while not l.empty()     //分发
+		 a <- L[next]; delete a
+		 i <- a[j]          //j域中a的值；
+		 add a to bki[]
+	end while
+	for i <- 0 to 9         //回收
+		add bki[] to L
+ 	end for
+end for                     //到高域充分发回收
+return L
+```
+
+利用迭代完成递归操作，动态维护回收过程
+时间复杂度Θ(n)； 空间复杂度Θ(n).
+
+## 5.4 整数幂
 
