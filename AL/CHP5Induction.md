@@ -96,3 +96,92 @@ return L
 
 ## 5.4 整数幂
 
+求实数x的n次幂的算法
+
+- Low: 迭代法自乘n次，乘法次数为theta(n)，计算量是指数的复杂度
+
+- Effective: m = [n/2]取下整，在已经知道计算x^m的归纳假设下，可以求出x^n = (x^m)^2 or ( (x^m)^2)*x 取决于n的奇偶：
+
+  - 递归算法EXP_REC:
+
+  ```pseudocode
+  def power(x,m):
+  	if m == 0 then y <- 1
+  	else
+  		y <- power(x,[m/2]d)
+  		y <- y*y
+  		if odd(m) then y <- x*y
+  	end if
+  	return y
+  end def
+  call power(x,n)
+  ```
+
+  - EXP_REC乘法次数为theta(logn)，计算量为输入的线性
+  - 可改写为迭代算法EXP：
+    - 设n的二进制码向量为[dk-1,..., d0]。从基数y为1开始从最高位到最低位扫描，ds=1则y=yy; ds=0则y=yyx
+
+  ```pseudocode
+  y <- 1
+  n = bin[dk,dk-1,...,ds,...,d0]
+  for j <- k downto 0
+  	y <- y*y
+  	if dj == 1 then y = xy
+  end for
+  return y
+  ```
+
+  - 运行时间为theta(logn)，对于输入的大小是线性的
+
+## 5.5 多项式求值（Horner规则）
+
+给定n+2个实数a0, a1, ..., an,x，要对多项式
+$$
+P_n(x)=a_{n}x^n+a_{n-1}x^{n-1}+...+a_1x+a_0
+$$
+分别每项计算再求和的需要的乘法次数为theta(n^2)的（或者为theta(nlogn)在各项运用rec再求和）
+
+- Honrer规则：在已经知道Pn-1(x)的计算方法时在运用一次乘法和加法
+  $$
+  P_n(x) = x·P_{n-1}(x)+a_0
+  $$
+  归纳展开
+  $$
+  P_n(x)=((...(((a_nx+a_{n-1})x+a_{n-2})x+a_{n-3})...+a_1)x+a_0
+  $$
+  算法HORNER
+
+  ```pseudocode
+  p <- an
+  for j <- 1 to n
+  	p <- x*p + an-j
+  end for
+  return p
+  ```
+
+  n次乘法和n次加法使复杂度退化为theta(n)
+
+## 5.6 生成排序
+
+
+
+## 5.7 Find Majority
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
