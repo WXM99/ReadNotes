@@ -245,13 +245,57 @@ perml(n)
 
 ## 5.7 Find Majority
 
+- Def Majority:
+  In a set of integer **A[1,2,..., n]**, if an element **a** appears some times of the number more than [n/2], than a is the majority.
 
+- Low:
+  Compare each element and count them, find the one who is counted above [n/2]; Compare times: n*(n+1)/2;  Time Complexity: theta(n^2)
 
+- Common:
 
+  Sort the set at the very first and then scan and count. Compare times: n; Sort complexity: n*logn; Time cplx: Ω(nlogn) (sort)
 
+- Effective:
 
+  1. Find Middle element without sort. theta(n) intro in 6.5
+  2. ALG: MAJORITY
 
+- Pre-conclusion：
 
+  Delete any two **different** elements in a set, the majority doesn't change ( if it got majority before ).
+
+- MJORITY
+
+  1. Scan compare the set from the second one 
+  2. set A[1] as pivot;
+  3. Keep a counter inited to be 1 counting A[1]'s appear times. 
+  4. If compared as diffrent ,the counter-- 
+  5. if counter==0, cut the set from scanner, do the same thing
+  6. When scanned up, return the pivot as a candidate.
+  7. Ensure the candidate to be the majority or not.
+
+```pseudocode
+def candidate(m):
+	j <- m; c<- A[m]; count<- 1
+	while j<n and count > 0
+	    // count == 0 and begin a new scan
+	    // means to cut previous elements 
+	    // like delete two different elements
+	    // many times
+		j <- j+1
+		if A[j] = c then count <- count+1
+		else count <- count -1
+	end while 
+if j = n then return c
+else return candidate(j+1) // tail rec, iteration
+
+c <- candidate(1)
+//scan A and count c to judge c is majority or not'
+```
+
+- complexity
+
+  One time scan of A, cmp tims is equal to n, cplx is theta(n).
 
 
 
