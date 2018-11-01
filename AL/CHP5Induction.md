@@ -41,7 +41,7 @@ sort(1)            //全局排序A[1...n]，调用sort(1)
 
 - 由递推公式可以解得
   $$
-  (1>n-1)∑j=n*(n-1)/2
+  ∑_{1}^{n-1}j=n*(n-1)/2
   $$
   运行时间和比较次数是线性关系，故SELECTSORT_REC是Θ(n^2)的
 
@@ -159,11 +159,89 @@ $$
   return p
   ```
 
-  n次乘法和n次加法使复杂度退化为theta(n)
+  操作递归方程为C(n) = C(n-1) + (n-1)，C(n) = 2*n. n次乘法和n次加法使复杂度退化为theta(n).
 
-## 5.6 生成排序
+## 5.6 生成排序(Permutation)
 
+对于生成1, 2, ..., n的全排列，用数组P来存放一种排列；归纳法解决的假设为：可以生成n-1个数的全排列
 
+###  算法1. 递归深度
+
+在可以生成n-1的全排列下，生成n个数的全排列做法为：
+
+1. 生成 2, 3..., n 的所有排列，并在前加入1；
+2. 生成 1, 3..., n 的所有排列，并在前加入2；
+
+  n.  生成1, 2,..., n-1的全排列，并在前加入n;
+
+```pseudocode
+def perml(m):
+	if m == n then output P
+	else
+		for j <- m to n
+			swap(pj, pm) //头插1...n,构造不同的P(n-1)
+			perml(m+1)   //Rec 全拍P(n-1)
+			swap(pj, pm) //复原为下一次构造
+		end for
+	end if
+end def
+#PERMUTATION1
+for j <- 1 to n
+	P[j] <- j
+end for
+perml(1)
+```
+
+- 时间复杂度分析：
+  在perml()的for循环中，第一次共执行了n次perm(2)和2n次swap(复杂度简记为n)，可得出操作次数f(n)的递归方程为：
+  $$
+  f(n)=\left\{
+  \begin{aligned}0, n=1\\
+  nf(n-1)+n, n ≥ 2\\
+  \end{aligned}
+  \right.
+  $$
+  利用辅助函数h(n) = n!f(n)可以解得操作的复杂度为theta(n*n!)
+
+### 算法2. 填补自由域(index)
+
+对于一个初始为全部自由项的数组P(n)，同样基于知道生成P(n-1)全排列的方法的归纳假设：
+
+1. 从首位填补自由项为n，直到最后一位
+2. 每次填补后，在省下的自由域中再利用P(n-1)算法填充
+3. 无自由项时，即为一种排列，输出
+4. 填补下一个自由项前，归还当前位置到自由域
+
+```pseudocode
+#PERMUTATION2
+def perml(m):
+	if m == 0 then output P[n]
+	else
+		for j <- i 1 to n
+			if p[j] = 0 then  // 自由位置
+				P[j] <- m     // 从高位填补
+                perml(m-1)    // rec填补余下
+                p[j] <- 0     // 归还自由空间
+            end if 
+        end for 
+    end if
+end def
+
+#初始化P[n]为完全自由空间(0)
+perml(n)
+```
+
+- 复杂度分析：
+
+  递归方程
+  $$
+  f(m)=\left\{
+  \begin{aligned}0, m=1\\
+  mf(m-1)+SIZE, m ≥ 2\\
+  \end{aligned}
+  \right.
+  $$
+  解得操作的复杂度是theta(n*n!)的
 
 ## 5.7 Find Majority
 
