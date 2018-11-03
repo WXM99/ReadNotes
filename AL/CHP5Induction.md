@@ -285,6 +285,7 @@ def candidate(m):
 		j <- j+1
 		if A[j] = c then count <- count+1
 		else count <- count -1
+		end if
 	end while 
 if j = n then return c
 else return candidate(j+1) // tail rec, iteration
