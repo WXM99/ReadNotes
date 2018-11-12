@@ -1,5 +1,47 @@
 # CHP2 Encoding
 
+bits + interpretation 可以任何有限几何元素
+
+- 无符号数：范围小，精确，会溢出
+- 有符号数：范围小，精确，会溢出
+- 浮点数：范围大，不精确
+
+## 2.1 信息储存
+
+- 8bits = 1 byte, byte是内存中最小的寻址单位
+
+- 内存全体地址集合为虚拟地址空间
+
+- 2进制-10进制-16进制的转换
+
+  - 4bit --> 1x
+
+- 数据类型大小(Byte)
+
+  - ​                                   32位     64位
+    - unsigned/char     1           1
+    - unsigned/short   2            2
+    - unsigned/int        4            4
+    - unsigned/long     4 *         8 *
+    - int32_t/uint32_t   4            4
+    - int64_t/uint63_t   8            8
+    - char*(addr)          4 *         8 *
+    - float                       4            4
+    - double                   8            8
+
+- 32位于64位区别在于虚拟地址空间的维度，32位最大空间为2^32 bits = 4GB; 64位最大空间为16EB
+
+- 64位机可编译32位机器程序(向后兼容) 程序编译时指定
+
+  ```shell
+  $> gcc -m32 prog.c
+  $> gcc -m64 prog.c
+  ```
+
+- 
+
+
+
 ## 2.4 Float
 
 with standard of IEEE 754
@@ -58,7 +100,7 @@ exp将浮点数分为三个类型
 
 ### 2.4.3 数字示例
 
-比特流映射到实数域内不是均匀分布的，Denormal在0附近分布密集，Denormal值均在0的2^(1-Bias)以内
+比特流映射到实数域内不是均匀分布的，Denormal在0附近分布密集，Denormal值均分布在0~+-2^(1-Bias)以内
 
 浮点排序=其比特流的无符号排序，负数反之
 
