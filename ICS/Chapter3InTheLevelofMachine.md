@@ -398,7 +398,7 @@ C中的循环语句do-while, while, for在汇编中没有对应的指令，汇�
 
 switch使用jump table这种数据结构完成多重分支
 
-jumpTable是一个数组，内部按序储存了代码段的地址，该段代码执行引索为地址在数组中的引索位置时的动作
+jumpTable是一个数组，内部按序储存了代码段的开始地址，该段代码执行引索为地址在数组中的引索位置时的动作
 $$
 swich引索 =>    jumpTable引索    
 $$
@@ -408,6 +408,21 @@ $$
 jT的跳转基于内存引索, 复杂度为O(1)，适用于较多较密集的分支
 
 GCC在分支数量大于4且跨度小时使用jT否则使用嵌套jmp指令（多重if-else）
+
+- switch的一般过程：
+
+0. 已知jumpTable的首地址 *JT ， JT中已经储存了代码地址
+1. 将标识变量(case)减去case中的最小项，得到引索项
+2. 将引索项与JT长度比较，大于则跳过switch语句(一般为结束代码块，在jT的代码中break会共同指向的代码块)
+3. 小于等于，则跳转至JT中引索位置 *.JT(,index,8)  // 8为JT中元素类型长度
+
+- JT的结构：
+  - 一般JT存储在readOnlyData区域
+  - .align8
+  - JT中按顺序存放代码块的首地址，一般采用点标签{.quad .LABLE}
+  - 代码标签在JT中的引索位置对应与其标识符与最小标识符的差值，若该位置没有出现标识符，则跳转至default代码块
+  - JT中的代码块一般在break后会跳转至结束代码块，否则顺序执行，这要求代码块在内存中按序排列
+  - break对应的结束代码块一般涉及对rax的操作
 
 ## 3.7 过程
 
@@ -435,7 +450,7 @@ caller通过寄存器最多可以向callee传递6个整数值；当callee需要�
 
 控制权在caller和callee之间的交接只需要简单的把PC设置为callee代码的起始位置，返回时回到caller的对应位置，继续执行；
 
-指令 call callee 会把返回地址压栈，同时设置PC为callee代码的首地址；指令ret 会从栈中(或许不是栈顶，视calleeframe有无，有则消栈)拿到返回地址并设置PC
+指令call会把返回地址压栈，同时设置PC为callee代码的首地址；指令ret 会从栈中(或许不是栈顶，视calleeframe有无，有则消栈sub rsp)拿到返回地址并设置PC(若用到rbp则用leave指令归还栈)
 
 call指令的目标可以直接拿到标号，也可以间接用*+操作数指示符找到特地代码内存位置
 
@@ -445,7 +460,7 @@ call和ret指令没有显示的调用push和pop，但%rsp自动维护了rs；一
 
 过程之间的参数通过寄存器传递；X86允许caller向callee通过整型寄存器至多传送6个参数，参数按顺序使用特定的寄存器，如下：
 ![Screen Shot 2018-10-21 at 21.17.34](./img/Screen Shot 2018-10-21 at 21.17.34.png)
-超过6个的参数需要使用rs，从右到左进栈，参数7位于栈顶，align8；最后在call指令时放入返回地址(内存中的参数被放入caller的frame中)；参数任意数据大小都向8的倍数对其(8bytes大空间存放参数)
+超过6个的参数需要使用rs，从右到左进栈，参数7位于栈顶(内存最下方最靠近返回地址处)，align8；最后在call指令时放入返回地址(内存中的参数被放入caller的frame中，callee使用时需要rsp or rbp +xx,xx>=8因为要越过返回地址)；参数任意数据大小都向8的倍数对其(8bytes大空间存放参数)
 
 ### 3.7.4 栈上的局部储存
 
@@ -459,7 +474,7 @@ call和ret指令没有显示的调用push和pop，但%rsp自动维护了rs；一
 
 ![Screen Shot 2018-10-21 at 20.03.42](./img/Screen Shot 2018-10-21 at 20.03.42.png)
 
-Caller在调用callee前的充分过程：
+Caller在调用callee前的准备过程：
 
 1. 保存caller-saved寄存器（在frame中）
 2. 在frame中保存局部变量
@@ -469,7 +484,7 @@ Caller在调用callee前的充分过程：
 
 - 局部变量存放区不进行align
 - 参数构造需要8align
-- callee执行完后归还其使用的frame，还原其保存的寄存器
+- callee执行完后归还其使用的frame，还原其保存的寄存器(通过pop指令和leave指令)
 
 ### 3.7.5 寄存器中的局部储存空间
 
