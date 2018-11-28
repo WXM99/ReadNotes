@@ -1,4 +1,4 @@
-# CHP10 P-NP-NPC
+# CHP10 P-NP-NPc
 
 - Decision problem（判定问题）: ret YES or NOPE
 - Optimization problem（优化问题）: the minimization or maximum in a list of element
@@ -43,7 +43,14 @@
 
   - 2-SAT problem:
 
+    > - Transform CNF into Implication
     >
+    > $$
+    > (a || b) = (!a → b ) and (!b → a)
+    > $$
+    >
+    > - Generate directed graph
+    > - If none of GI ’s strongly connected components contain both a literal and its negation, then the instance I must be satisfiable. 
 
 - ### *Def* Complementation Problem
 
@@ -145,8 +152,13 @@ $$
 - ### *Prop* NP-complete
 
   > - A given problem Π belong to the NPc class.
-  > - If there exists a polynomial time deterministic algorithm to decide or solve Π.
-  > - Then every problem in the NP class can be decided or solved by a polynomial time deterministic algorithm. (NP = P)
+  > - If there exists a polynomial time deterministic algorithm to decide or solve Π. Then every problem in the NP class can be decided or solved by a polynomial time deterministic algorithm. (NP = P)
+
+- ### *Prove* NPc 
+
+  > - A given problem Π belong to the NP class.
+  > - Exist a NPc problem Π' can reduce to Π.
+  > - Then Π is NPc.
 
 - ### *Cmp* NP-hard & NP-complete
 
@@ -157,15 +169,41 @@ $$
 
   - ***The satisfiability problem***
 
-    > 1
+    > A CNF is satisfiable if **a truth assignment** to its variables that **makes it true**.
+
+    - ***Theorem***
+
+      > SAT is NPc.
+
+    > Any problem in NP can be reduced to a boolean formula ***f***.
+
+    - ***Theorem***
+
+      > Reducibility ralation is transitive.
+      > $$
+      > if (Π∝_{poly}Π')and(Π'∝_{poly}Π'')
+      > $$
+      >
+      > $$
+      > then(Π∝_{poly}Π'')
+      > $$
+      >
+
+    - ***Corollary***
+
+      > Π and Π' are NP, if Π' can reduce to Π, and Π is NPc, then Π' is NPc.
 
   - ***Vertex cover, independent set and clique problems***
 
-    > 2
+    > - CLIQUE
+    > - VERTEX_COVER
+    > - INDEPENDENT_SET
 
   - ***More NPc Problems***
 
-    > 3
+    > - 3-SAT
+    > - 3-COLORING
+    > - 
 
 
 
