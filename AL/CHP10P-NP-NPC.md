@@ -20,7 +20,7 @@
   > - The solution of problems in the class of P (YES/NOPE) can be  obtained using a **Deterministic Algorithm** 
   > - The algorithm runs in **polynomial number of steps**.
 
-- ### e.g.
+- ### *e.g.*
 
   - [SortTable, UnionFind, ShortestPath]
 
@@ -107,7 +107,7 @@
   >   1. Given an instance ***I*** of Π problem. 
   >   2. An **NDA** can be contructed and runs in **polynomial time**.
 
-- ### *Cmp* P&NP
+- ### *Cmp* P & NP
 
   > - Class NP **⊆** Class P
   > - Problems in class P demands for a **polynomial time  deterministic algorithm to decide or solve**.
@@ -115,29 +115,69 @@
 
 
 
-## 〇 The Class NPC
+## 〇 The Class NP-complete
+
+- ### *Def* Reduction 
+
+  > - Given two decision problems Π and Π'.
+  > - A deterinistic algorithm *A* can be constructed.
+  > - When presented an instance I of Π, *A* **transforms** it into an instance I' of Π'.
+  > - Answer to I is YES **if and only if** answer to I' is YES
+  > - *A* is **polynomial time** algorithm. 
+
+$$
+(Π_{output})∝_{poly}(Π'_{input})
+$$
+
+- ### *Def* NP-hard
+
+  > - For **any** problem Π' in class **NP**.
+  > - Problem Π' can  be reduced to Π, e.t.(Π'∝Π).
+  > - Π is belong to the class NP-hard.
+
+- ### Def NP-complete
+
+  > - Given a problem Π.
+  >
+  > - Π is in the class NP.
+  > - For any problem Π' in NP, Π' can  be reduced to Π, e.t.(Π'∝Π).
+
+- ### *Prop* NP-complete
+
+  > - A given problem Π belong to the NPc class.
+  > - If there exists a polynomial time deterministic algorithm to decide or solve Π.
+  > - Then every problem in the NP class can be decided or solved by a polynomial time deterministic algorithm. (NP = P)
+
+- ### *Cmp* NP-hard & NP-complete
+
+  > - The NP-complete class is included in the NP class.
+  > - The NP-hard class may not be in NP.
+
+- ### *e.g.*
+
+  - ***The satisfiability problem***
+
+    > 1
+
+  - ***Vertex cover, independent set and clique problems***
+
+    > 2
+
+  - ***More NPc Problems***
+
+    > 3
 
 
 
+## 〇 The Class co-NP
 
 
 
+## 〇 The Class NPI
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+## 〇 Relationships
 
 
 
