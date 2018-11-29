@@ -133,7 +133,7 @@
   > - *A* is **polynomial time** algorithm. 
 
 $$
-(Π_{output})∝_{poly}(Π'_{input})
+(Π_{output})\propto_{poly}(Π'_{input})
 $$
 
 - ### *Def* NP-hard
@@ -142,7 +142,7 @@ $$
   > - Problem Π' can  be reduced to Π, e.t.(Π'∝Π).
   > - Π is belong to the class NP-hard.
 
-- ### Def NP-complete
+- ### *Def* NP-complete
 
   > - Given a problem Π.
   >
@@ -181,41 +181,184 @@ $$
 
       > Reducibility ralation is transitive.
       > $$
-      > if (Π∝_{poly}Π')and(Π'∝_{poly}Π'')
+      > if (Π\propto_{poly}Π') \&\& (Π'\propto_{poly}Π'')
       > $$
       >
       > $$
-      > then(Π∝_{poly}Π'')
+      > then(Π\propto_{poly}Π'')
       > $$
       >
 
     - ***Corollary***
 
-      > Π and Π' are NP, if Π' can reduce to Π, and Π is NPc, then Π' is NPc.
+      > Π and Π' are NP, if Π can be reduce to Π', and Π is NPc, then Π' is NPc.
 
   - ***Vertex cover, independent set and clique problems***
 
-    > - CLIQUE
-    > - VERTEX_COVER
-    > - INDEPENDENT_SET
+    - CLIQUE
+
+      > - Given an undirected graph G=(V, E) and a positive integer k.
+      > - Decide G contains a ***clique*** of size k or not.  
+      >   *(a **clique** is a complete subgraph of G on k vertexes)*
+
+    - VERTEX_COVER
+
+      > - Given an undirected graph G=(V, E) and a positive integer k.
+      > - Decide the existence of a subset C ⊆ V of size k such that each edge in E is incident to a least one vertex in C.
+
+    - INDEPENDENT_SET
+
+      > - Given an undirected graph G=(V, E) and a positive integer k.
+      > - Decide the existence of a subset S ⊆ V of k vertexes such that for each pair of vertexes *u, w* ∈ S, but the egde of *u, w*, e.t. (u,w) ∉E.
+
+  - ***Proof***  Clique, Vertex_cover and Independent_set are NPC
+
+    > - SAT can be reduced to CLIQUE
+    >
+    >   > - Given an instance of CNF with *m* clauses and *n* boolean variables x1,x2,...xn. 
+    >   >
+    >   >   > $$
+    >   >   > f = C_1\land C_2 \land C_3 \cdots \land C_m
+    >   >   > $$
+    >   >   >
+    >   >
+    >   > - Construct a graph G=(V, E)
+    >   >
+    >   >   > $$
+    >   >   > E = \{(x_i, x_j)\ |\  x_i\ and\ x_j \ are\ in\ twp\ different\ clauses\ and\ x_i≠\bar{x}_j \}
+    >   >   > $$
+    >   >   >
+    >   >   > $$
+    >   >   > V\ is\ the\ set\ of\ all\ appeared\ 2n\ literals\ 
+    >   >   > $$
+    >   >   >
+    >   >   > *(n vars and their negations sum 2n)*
+    >   >   >
+    >   >   > The construction is polynomial time.
+    >   >
+    >   > - ***Lemma*** f is satisfiable IAOI G has clique of size m (the number of clauses)
+    >   >
+    >   >   > ***Proof***:
+    >   >   >
+    >   >   > CLIQUE in G represents truth assignment in clique has no contradiction.
+    >   >   >
+    >   >   > CLIQUE of size m represents m vars (not include var and its negation) can be assigned with no contradiction. 
+    >
+    > - CLIQUE, VERTEX_COVER and INDEPENDENT_SET can be reduced reciprocally
+    >
+    >   > - INDEPENDENT_SET reduce to CLIQUE
+    >   >
+    >   >   > - Gc is the complete graph of G, Gm=(V, Ec);
+    >   >   > - E_{\bar} = Ec - E;
+    >   >   > - G_{\bar} = (V, E-{\bar})
+    >   >   > - The indepentdent_set of vertex ***S*** in ***G*** is exactly ***CLIQUE*** in ***G_{\bar}*** 
+    >   >
+    >   > - VERTEX_COVER reduce to INDEPENDENT_SET
+    >   >
+    >   >   > - The indepentdent_set of vertex ***S*** in ***G***(V, E).
+    >   >   > - The set of vertex ***C*** = ***V-S***.
+    >   >   > - ***C*** is a VERTEX_COVER of G.
 
   - ***More NPc Problems***
 
     > - 3-SAT
     > - 3-COLORING
-    > - 
+    > - etc.
 
 
 
 ## 〇 The Class co-NP
 
+- ### *Def* co-NP
 
+  > Problems whose ***complements*** are in **NP**.
+  >
+  > Conjecture: co-NP ≠ NP.
+
+- ### *Def* co-NP complete
+
+  > Problem Π is complete for the class co-NP if:
+  >
+  > - Π is in co-NP
+  > - For every problem Π' in co-NP, Π' can be reduced to Π.
+
+- ### *Lemma*
+
+  > If ***A*** reduce **Π'** to **Π**, (Π and Π' is in the class NP)
+  >
+  > Then ***A*** can also reduce **co-Π'** to **co-Π**. 
+
+- ### *Theorem* 
+
+  > A problem Π is NP-complete IAOI its complement co-Π is complete for the 
+  >
+  > class co-NP.
+  >
+  > (The symmetry of complete problem)
+
+- ### ***Corollary***
+
+  > Statements bellow are equivalent:
+  >
+  > - NP = co-NP
+  > - co-NP is closed under complementation
+  > - NP is closed under complementation
+
+  > Statements bellow are equivalent:
+  >
+  > - NPc = co-NPc (stronger)
+  > - co-NPc is closed under complementation => co-NP closed
+  > - NPc is closed under complementation => NP closed
+
+  > If NP = P, then co-NP = NP (P closed)
+
+- ### *Theorem* 
+
+  > Decide a DNF is tautology (TAUTOLOGY) is ccomplete for the class co-NP.
+  >
+  > - TAUTOLOGY is in P IAOI co-NP = P
+  > - TAUTOLOGY is in P IAOI co-NP = NP
 
 ## 〇 The Class NPI
 
+- ### *Theorem* 
 
+  > If Π and co-Π are both NPc, then coN-P = NP
+
+- ### *Def* NPI 
+
+  > If Π is in the class NP, Π's complement co-Π is in NP too
+  >
+  > Then Π is in the class NPI
+
+- ### *e.g.*
+
+  > - Prime Number (P class)
+  > - Composite (P class)
 
 ## 〇 Relationships
+
+![chp10-rel](./img/chp10-rel.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
