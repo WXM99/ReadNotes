@@ -230,26 +230,26 @@ Instruction set + Hardware = Processer (sequential)
      ```C
      int srcA = [
          icode in {IRRMOVQ, IRMMOVQ, IOPQ, IPUSHQ} : rA;
-         icode in {IPOPQ, IRET} : RRSP;
-         1 : RNONE; // F means no reg
+         icode in {IPOPQ, IRET}                    : RRSP;
+         1                                         : RNONE; // F means no reg
      ]
      
      int srcB = [
-     	icode in {IRMMOVQ, IMRMOVQ, IOPQ} : rB;
+     	icode in {IRMMOVQ, IMRMOVQ, IOPQ}    : rB;
          icode in {IPOPQ, IPUSH, ICALL, IRET} : RRSP;
-         1 : RNONE;
+         1                                    : RNONE;
      ]
      
      int dstM = [
          icode in {IMRMOVQ, IPOPQ} : rA;
-         1 : RNONE;
+         1                         : RNONE;
      ]
          
      int dstE = [
-     	icode in {IRRMOVQ} && Cnd : rB;
-         icode in {IIRMOVQ, IOPQ} : rB;
+     	icode in {IRRMOVQ} && Cnd             : rB;
+         icode in {IIRMOVQ, IOPQ}              : rB;
          icode in {IPOPQ, IPUSHQ, ICALL, IRET} : RRSP;
-         1 : RNONE;
+         1                                     : RNONE;
      ]
      ```
 
@@ -259,22 +259,67 @@ Instruction set + Hardware = Processer (sequential)
 
      ``` c
      int aluA = [
-     	icode in { IRRMOVQ, IOPQ } : valA;
+     	icode in { IRRMOVQ, IOPQ }             : valA;
      	icode in { IIRMOVQ, IRMMOVQ, IMRMOVQ } : valC;
-     	icode in { ICALL, IPUSHQ } : -8;
-     	icode in { IRET, IPOPQ } : 8;
+     	icode in { ICALL, IPUSHQ }             : -8;
+     	icode in { IRET, IPOPQ }               : 8;
      	# Other instructions don't need ALU
      ];
      
      int aluB = [
      	icode in { IRMMOVQ, IMRMOVQ, IOPQ, ICALL,
-     			   IPUSHQ, IRET, IPOPQ } : valB;
-     	icode in { IRRMOVQ, IIRMOVQ } : 0;
+     			   IPUSHQ, IRET, IPOPQ }         : valB;
+     	icode in { IRRMOVQ, IIRMOVQ }            : 0;
      	# Other instructions don't need ALU
      ];
      
      int alufun =[
          icode == IOPQ :ifun;
-         1 : ALUADD;
+         1             : ALUADD;   //pushq popq call ret movq...
      ];
+     
+     bool SetCC = icode == IOPQ;
      ```
+
+  4. Memory
+
+     ![memory](/Users/Miao/Desktop/memory.png)
+
+     ```c
+     int mem_addr =[
+     	icode in {IRMMOVQ, IPUSHQ, ICALL, IMRMOVQ } : valE;
+     	icode in {IPOPQ, IRET }                     : valA;
+     	# Other instructions don't need address
+     ];
+     
+     int mem_data =[
+     	# Value from register
+     	icode in {IRMMOVQ, IPUSHQ } : valA;
+     	# Return PC
+     	icode == ICALL              : valP ;
+     	# Default: Don't write anything
+     ];
+     
+     int Stat = [
+     	imem_ error || dmem_ error : SADR;
+     	! instr_valid              : SINS;
+     	icode == IHALT             : SHLT ;
+     	1                          : SAOK;
+     ];
+     
+     bool mem_read = icode in {IMRMOVQ, IPOPQ, IRET};
+     bool mem_write = icode in {IRMMOVQ, IPUSHQ, ICALL};
+     ```
+
+  5. Update PC
+
+
+
+
+## ○Pipeline Principle
+
+
+
+## ○Y86-64 Pipeline
+
+ 
