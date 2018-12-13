@@ -313,13 +313,108 @@ Instruction set + Hardware = Processer (sequential)
 
   5. Update PC
 
+     ![updatepc](/Users/Miao/Desktop/updatepc.png)
 
-
-
-## ○Pipeline Principle
+     ```c
+     word new_ pc =[
+     	# Call. Use instruction constant
+     	icode == ICALL       : valC;
+     	# Taken branch. Use instruction constant
+     	icode == IJXX && Cnd : valC;
+     	# Completion of RET instruction. Use value from stack
+     	icode == IRET        : valM;
+     	# Default: Use incremented PC
+     	1                    : valP;
+     ];
+     ```
 
 
 
 ## ○Y86-64 Pipeline
 
- 
+- ### SEQ+ model: Rearrange  stages
+
+  ![pcad](/Users/Miao/Desktop/pcad.png)
+
+  - 总线信号分别存储在寄存器中
+  - 下一个Cycle伊始，总线信号通过PC逻辑电路产生newPC信号
+  - PC信号没有寄存器，为动态信号
+
+- ### PIPE- model: 
+
+  ![pipe-](/Users/Miao/Desktop/pipe-.png)
+
+  - Pipeline register  (down to up)
+    - F: 保存PC的预测值
+    - D: 保存最新指令编码的解析信息
+    - E: 译码指令信息和RegFile读取的信息 
+    - M: 储存ALU计算结果和条件转移的分支条件和目标
+    - W: 储存提供给RegFile和PCselect的数据
+  - Next PC
+    - Normal ins: valP = last_PC + sizeof(last_INS) 
+    - IJXX: *Branch Prediction*
+      - Taken: valC (Y86-64: always taken)
+      - Not taken: valP
+    - ICALL: valC
+    - IRET: M(R[%rsp]) No prediction, just pause
+    - Select PC选择 **[** predPC(normal), M_valA(not taken jxx's valP), W_valM(ret) **]**
+
+- ### PIPE model: Hazard
+
+  - Instruction Related:
+
+    - Data related:
+      下一条指令用到这一条指令的计算结果
+    - Control related:
+      这一条指令确定下一条指令的位置 (jxx, call, ret)
+      算数意义上的下一条指令地址(valP)和实际有可能不同
+
+  - Hazard: 指令相关可能会导致的流水线计算错误
+
+    - Data hazard:
+
+      e.g.
+
+      ```assembly
+      # /*under PIPE-model Y86-64 program1*/
+      irmovq $10, %rdx  # inst1 in F （Data goes in reg in WriteBack stage）
+      irmovq  $3, %rax  # inst2 in F; inst1 in D  
+      nop               # inst2 in D; inst1 in E
+      nop               # inst2 in E; inst1 in M
+      addq %rdx, %rax   # when Decode this ins (this ins in Fetch)
+                        # inst1 has been finished 
+                        # yet inst2 is in WB(not finishend yet)
+      ```
+
+      过程program1输出%rax=10，与预期13不符合，在Cycle6 addq指令decode时，inst2还未能将3写回%rax，此时取值为%rax=0，导致alu输出valE = 0 + R[%rdx] = 10。addq指令在Cycle9 写回10到%rax 结束。
+
+      - PIPE- 指令中取值的寄存器在其之前的三条指令被修改，则会出现DataHazard
+        （D与W相差3cycles）
+
+      - 内存读取值指令紧接着内存修改指令不会出现Hazard(各自的M阶段恰好相差1Cycle)
+
+    - Control hazard:
+
+      - 
+
+    - Types
+
+      > 1. RegisterFile的读写在不同Stage  **//!**
+      > 2. PC和PCupdate的冲突导致Fetch阶段的Control Hazard  **//!**
+      > 3. 指令内存的写入(M)和地址读取(F)的冲突，一般认为DM和IM隔离，不发生冲突
+      > 4. CC在OPQ指令E阶段写入，读取CC的CMOVQ在E阶段读取，JXX在M阶段读取(均在OPQ的E或之后，不会发生冲突)
+      > 5. Stat分别于每条指令关联，Exception按序停止 **//!**
+
+    - Handle
+
+      1. Stalling：// DataHazard
+
+         让读取RegFile的指令停留在Decode阶段，直到修改reg的指令通过WB阶段；之前的指令stall在Fetch，通过不修改PC实现
+
+      2. Data Forwarding
+
+- ### PIPE stages detail
+
+- ### Pipeline Controll Logic
+
+- 

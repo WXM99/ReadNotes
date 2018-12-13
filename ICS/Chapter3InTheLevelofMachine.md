@@ -491,7 +491,13 @@ Caller在调用callee前的准备过程：
 寄存器作为所用过程共享的储存资源，在每个过程进行完成后，必须保证**寄存器拥有原先相同的状态**，使挂起的过程正确执行。x86-64制定了寄存器的统一使用惯例，所有的过程都必须遵循
 
 - Callee-saved reg：
+
+  ```assembly
+  %rbx %rbp %12 %13 %14 %15
+  ```
+
   %rbx, %rbp, %r12~15. 在callee过程内部，首先将这些寄存器压栈后才能使用，返回时前推栈，使寄存器与caller递交时状态一致 (frame中为保存的reg部分)
+
 - Caller-saved reg:
   除了%rsp和callee-saved reg外都是caller-saved reg.所有函数都可以任意修改这些reg. 因为在过程使用这些reg前，原先使用的结果已经被使用者保存
 
