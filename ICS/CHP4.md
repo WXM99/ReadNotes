@@ -411,10 +411,403 @@ Instruction set + Hardware = Processer (sequential)
 
          让读取RegFile的指令停留在Decode阶段，直到修改reg的指令通过WB阶段；之前的指令stall在Fetch，通过不修改PC实现
 
+         插入Bubble由逻辑电路控制
+
       2. Data Forwarding
+
+         - regFile的会入写在PIPE-中直到WB才能完成，PIPE中的forwarding将需要写入的值率先传递到就存起E寄存器中，作为操作输入(W_valE M_valE **e_valE**)，避免暂停（Reg forwarding）
+
+           ```c
+           W_valE --> E_valA(E_valB) // 3 cycles ahead /WD valE
+           W_valM --> E_valA(E_valB) // 3 cycles ahead /WD valM
+           M_valE --> E_valA(E_valB) // 2  /MD Hazard/
+           m_valm --> E_valA(E_valB) // (2+)=2 /plus means stage中获取 Load-use Hazard
+           e_vale --> E_valA(E_valB) // (1+)=1 /ED Hazard
+           ```
+
+           ![forwarding](/Users/Miao/Desktop/forwarding.png)
+
+           > - PIPE模型，用Forwarding处理DataHazard
+           >
+           > - 组合逻辑`Sel+FwdA`集合了PIPE-中的`SelectA`和Forwarding取值的逻辑
+           >   - 其出口d_valA = E_valA 可能为 D_valP, R[rA], forwardingDatas 
+           >
+           > - 组合逻辑`FwdB`完成valB的Forwarding取值逻辑
+
+         - Decode阶段，逻辑电路决定E_valA/B使用RegFile读取值还是Forwarding的值和Forwarding值的优先关系
+
+      3. Load/Use Hazard
+
+         -  Load转置从Memory读取值到寄存器
+
+         - 上一条指令A load过后，本条指B令再读取相同寄存器。由于A中最早只能在M阶段后产生正确值，而B在Decode阶段就需要取值，超前A‘sM一个Cycle，故Forwarding无法解决
+
+         - Handle：
+
+           - stalling+dataForwarding
+
+             Load指令在E阶段时，PIPE控制逻辑检测到此时D阶段指令需要使用Load的值，则在下一个Cycle中的E阶段插入Bubble。
+
+             下一个周期时，use指令依然在D阶段，load指令不受Bubble影响到达M阶段；该Cycle中后期m_valM Forwarding回到use指令D阶段使用
+
+             ![loaduse](/Users/Miao/Desktop/loaduse.png)
+
+             - Load interlock: 在use指令的D阶段时E中插入Bubble，拉长CPI到2，降低吞吐量
+
+      4. Avoid Controll Hazard
+
+         ret和 jxx(和任何其他)指令在Fetch阶段需要根据当前指令信息和PC，经过F阶段的逻辑电路来将预测的下一条指令地址写入F寄存器的predPC。
+
+         下一个Cycle内predPC经过选择后到达指令内存取值，并再次完成PU和填充Dp_reg
+
+         - 对于RET：
+           在Decode阶段连续插入**向前**插入三个Bubble，到达WB阶段后，以W_valM为值更新PC(也可取用m_valM, 但是会拉长时钟周期)
+
+         - Mispredicted Branch：
+           进入流水线的分支下的指令最多为两条(不包括JXX)
+           jxx前的运算会在E阶段完成后的M_Cnd判断是否预测正确
+
+           - 若正确(Cnd == 1)则不做修改，按序执行，没有Cycle浪费(等价于顺序执行)
+
+           - 若预测错误，则在**下个周期**内向D和E插入Bubbles，分别抹去两条错误指令在D和F阶段（错误指令2在F被正确指令覆盖，错误指令1在D被指令2的Bubble覆盖）；
+             同时取回JXX指令的valP (JXX在该周期内完成E阶段，valP在M_valA取得)作为下一条指令的地址（正确地址进入Fetch阶段）
+             该周期内的流水线状态
+
+             | Fetch     | Decode        | Execute       | Memory |
+             | --------- | ------------- | ------------- | ------ |
+             | 错误指令2 | 错误指令1     | JXX           |        |
+             | 正确指令  | 指令2的Bubble | 指令1的Bubble | JXX    |
+
+             再下一个Cycle变为正确指令正常执行，复写掉错误指令，浪费两个Cycle
 
 - ### PIPE stages detail
 
+  1. **PCselect & Fetch**
+
+     ![pfetch](/Users/Miao/Desktop/pfetch.png)
+
+     ```c
+     bool f_instr_valid = icode in {@ALL_IS};
+     bool f_need_regids = icode in {IRRMOVQ, IIRMOVQ, IRMMOVQ, 
+                                  IMRMOVQ, IOPQ, IPUSHQ, IPOPQ};
+     bool f_need_valC = icode in {IIRMOVQ,IRMOVQ, IMRMOVQ, IJXX, ICALL};
+     
+     int f_pc = [
+     	// Mispredicted branch. Fetch at incremented PC
+     	M_icode == IJXX && !M_Cnd  : M_valA;
+     	// Completion of RET instruction
+     	W_icode == IRET            : W_valM;
+     	// Default: Use predicted value of PC
+     	1                          : F_predPC; 
+     ];
+     
+     int f_predPC = [
+         f_icode in {IJXX, ICALL}  : f_valC;
+         // Default: Use data from PC increment
+         1:                        : f_valP;
+     ]
+     ```
+
+  2. **Decode &WriteBack**
+
+     ![pDecodeWB](/Users/Miao/Desktop/pDecodeWB.png)
+
+     ```c
+     int d_dstE = [
+         D_ icode in {IRRMOVQ, IIRMOVQ, IOPQ}      : D_rB;
+     	D_ icode in {IPUSHQ, IPOPQ, ICALL, IRET } : RRSP;
+         1                                         : RNONE; 
+     ]
+         
+     int d_dstM = [
+     	D_icode in {IMRMOVQ, IPOPQ} : D_rA;
+         1                           : RNONE;
+     ] 
+     
+     int d_srcA = [
+     	D_icode in {IOPQ, IRRMOVQ, IRMMOVQ, IPUSHQ} : D_rA;
+         D_icode in {IPOPQ, IRET}                    : RRSP;
+         1                                           : RNONE;    
+     ]
+        
+     int d_srcB = [
+         D_icode in {IOPQ, IRRMOVQ, IRMMOVQ }        : D_rB;
+         D_icode in {IPOPQ, IPUSH, ICALL, IRET}      : RRSP;
+         1                                           : RNONE;    
+     ]
+         
+     int d_valA = [ //优先级排序
+     	D_icode in {ICALL, IJXX} : D_valP; // Use incremented PC
+     	d_srcA == e_dstE         : e_valE; // Forward valE from execute
+         d_srcA == M_dstM         : *m*_valM; // Forward valM from memory
+     	d_srcA == M_dstE 	     : M_valE; // Forward valE from memory
+     	d_srcA == W_dstM 		 : W_valM; // Forward valM from write back
+     	d_srcA == W_dstE 		 : W_valE; // Forward valE from write back
+     	1                        : d_rvalA;// Use value read from register file
+     ];
+     // d_valA中的优先级为，valP选择级别最高，Forwarding距离由短到长(距离近的指令后进入流水线，状态最新)
+     
+     int d_valB = [
+         d_srcB == e_dstE : e_valE;  // Forward valE from execute
+     	d_srcB == M_dstM : m_valM;  // Forward valM from memory .
+         d_srcB == M_dstE : M_valE;  // Forward valE from memory
+     	d_srcB == W_dstM : W_valM;  // Forward valM from write back
+         d_srcB == W_dstE : W_valE;  // Forward valE from write back
+     	1                : d_rvalB; // Use value read from register file
+     ]
+     ```
+
+  3. Execute
+
+     ![pexecute](/Users/Miao/Desktop/pexecute.png)
+
+     ```c
+     int aluA =[
+     	E_icode in { IRRMOVQ, IOPQ }             : E_valA;
+     	E_icode in { IIRMOVQ, IRMMOVQ, IMRMOVQ } : E_valC;
+     	E_icode in { ICALL, IPUSHQ }             : 8;
+     	E_icode in { IRET, IPOPQ }               : 8;
+     	# Other instructions don' t need ALU
+     ];
+     
+     int aluB = [
+     	E_ icode in { IRMMOVQ, IMRMOVQ, IOPQ, 
+                       ICALL, IPUSHQ, IRET, IPOPQ } : E_ _valB;
+     	E_ icode in { IRRMOVQ, IIRMOVQ }           : 0;
+         # Other instructions don' t need ALU
+     ];
+     
+     int alufun = [
+         E_icode == IOPQ : E_ifun;
+         1               : ALUADD;
+     ]
+         
+     int e_valE = aluB _OP_ aluA;
+     int e_valA = E_valA;
+     int e_dstE = [
+         (E_icode == IRRMOVQ) && !e_Cnd : RNONE; // Do not write back
+         1                              : E_dstE;
+     ];
+     
+     /* HCL of  setCC and e_cond is in Pipeline controll logic */
+     ```
+
+  4. Memory
+
+     ![pmem](/Users/Miao/Desktop/pmem.png)
+
+     ```c
+     int mem_addr = [
+         M_icode in { IRMMOVQ, IPUSHQ, ICALL, IMRMOVQ} : M_valE;
+         M_icode in { IPOPQ, IRET}                     : M_valA;
+         # Other instructions don't need addr
+     ];
+     
+     bool mem_read = M_icode in {IMRMOVQ, IPOPQ, IRET};
+     bool mem_write = M_icode in {IRMMOVQ, IPUSHQ, ICALL};
+     ```
+
 - ### Pipeline Controll Logic
 
-- 
+  - Cases
+    1. Load/Use Hazard
+    2. Stall 3 cycles for ret
+    3. Mispredicted branch handle
+    4. Exception handle
+
+  - 特殊控制处理
+
+    - Load指令类：内存取值的指令类：MRMOVQ 和 POPQ
+
+      Use指令：Decode阶段读取RegFile的指令类
+
+      当Use指令位于Decode 且 Load 指令位于Exe时为Load/use Hazard (1Cycle ahead)
+
+      - Handle：
+
+        Use指令阻滞在Decode阶段，并在E**插入Bubble**：
+
+        | Decode | Execute | Memor |
+        | ------ | ------- | ----- |
+        | Use    | Load    | \     |
+        | Use    | Bubble  | Load  |
+
+        > 阻滞Use在D：D的PIPE寄存器在时钟下降沿不写入，保持固定；同时保证F的PIPE寄存器固定；流水线在D和F进制，没有吞量
+        >
+        > E阶段插入Bubble：E寄存器的icode用0x0代替（用nop指令填补）
+
+    - RET指令
+
+      RET指令完成M阶段前，下一条指令时钟组织在F，直到被正确地址覆盖，延迟3个cycle
+
+      | Fetch    | Decode | Execute | Memory |
+      | -------- | ------ | ------- | ------ |
+      | ret      | \      | \       | \      |
+      | ret_next | ret    | \       | \      |
+      | ret_next | Bubble | ret     | \      |
+      | ret_next | Bubble | nop     | ret    |
+      | re_addr  | Bubble | nop     | nop    |
+
+    - Mispredicted Branch
+
+      - 进入流水线的分支下的指令最多为两条(不包括JXX)
+        jxx前的运算会在E阶段完成后的M_Cnd判断是否预测正确
+
+        - 若正确(Cnd == 1)则不做修改，按序执行，没有Cycle浪费(等价于顺序执行)
+
+        - 若预测错误，则在**下个周期**内向D和E插入Bubbles，分别抹去两条错误指令在D和F阶段（错误指令2在F被正确指令覆盖，错误指令1在D被指令2的Bubble覆盖）；
+          同时取回JXX指令的valP (JXX在该周期内完成E阶段，valP在M_valA取得)作为下一条指令的地址（正确地址进入Fetch阶段）
+          该周期内的流水线状态
+
+          | Fetch     | Decode        | Execute       | Memory |
+          | --------- | ------------- | ------------- | ------ |
+          | 错误指令2 | 错误指令1     | JXX           |        |
+          | 正确指令  | 指令2被Bubble | 指令1被Bubble | JXX    |
+
+          再下一个Cycle变为正确指令正常执行，复写掉错误指令，浪费两个Cycle
+
+    - // Exception的处理
+
+  - 发现特殊控制的条件
+
+    - 通过d_srcA和d_srcB获取Decode中指令的寄存器ID
+
+    - 通过流水线寄存器DEM获取stages中的指令状态
+
+      - ret指令检查icode
+
+      - load/use指令组合检查e_icode(为Load类)和d_src(Use load中的汇)
+
+      - Mispredicted branch时在JXX指令到达M寄存器时即可发现并纠正(M_valP)
+
+      - JXX位于E阶段时，e_Cnd可以说明是否跳转
+
+      - 检查M阶段中的stat和W中的stat发现异常指令，阻止状态修改
+
+        | case                | trigger Cnd                                               |
+        | ------------------- | --------------------------------------------------------- |
+        | ret                 | IRET in {D_icode,  E_code, M_icode}                       |
+        | Load/Use Hazard     | E_icode in (IMRMOVQ, IPOPQ) && E_dstM in {d_srcA, d_srcB} |
+        | Mispredicted branch | E_icode == IJXX && !e_Cnd                                 |
+        | Exception           | m_stat != SOK \|\| W_stat != SOK                          |
+
+  - 流水线控制机制  
+
+    - 流水线寄存器有两个控制输入：Stall and Bubble 决定时钟上升沿寄存器如何更新
+
+      - Stall = Bubble = 0: 正常更新为输入
+
+      - Stall = 1； Bubble = 0：流水线寄存器禁止更新，保持固定
+
+      - Bubble = 1；Stall = 0：流水线寄存器复位(不同阶段不一样，改变icode，srcAB等)，等价于变为nop指令
+
+      - Bubble = Stall = 1：不允许             
+
+        | Stall | Bubble | Input | State | Output(LC) | state(NC) | Output(NC) |
+        | ----- | ------ | ----- | ----- | ---------- | --------- | ---------- |
+        | 0     | 0      | y     | x     | x          | y         | y          |
+        | 1     | 0      | y     | x     | x          | x         | x          |
+        | 0     | 1      | y     | x     | x          | nop       | nop        |
+        | 1     | 1      | y     | x     | x          | U(X\|Y)   | U(X\|Y)    |
+
+    - 流水线控制组合逻辑电路利用Bubble，Stall，Normal的组合对特殊情况进行控制
+
+    - 控制输出必须保证在一个Cycle内完成，来明确下个周期寄存器的读写权限
+
+    - 控制逻辑对不同情况的处理方式
+
+      | Condition    | F (PipeReg) | D(PipeReg) | E(PipeReg) | M(PipeReg) | W(PipeReg) |
+      | ------------ | ----------- | ---------- | ---------- | ---------- | ---------- |
+      | ret          | Stall       | Bubble     | Normal     | Normal     | Normal     |
+      | Load/Use     | Stall       | Stall      | Bubble     | Normal     | Normal     |
+      | Mispredicted | Normal      | Bubble     | Bubble     | Normal     | Normal     |
+
+  - 控制条件的组合 
+
+    特殊处理的状态枚举
+
+    |                                    | Decode | Execute | Memory |
+    | ---------------------------------- | ------ | ------- | ------ |
+    | Load/Use                #          | Use    | Load    | \      |
+    | Mispredicted branch *              | \      | JXX     | \      |
+    | ret(1)                        #  * | ret    | \       | \      |
+    | ret(2)                             | Bubble | ret     | \      |
+    | ret(3)                             | Bubble | Bubble  | ret    |
+
+    互斥操作组合：
+
+    1. E: JXX + D:ret (*match)
+
+       - Jmp taken到ret指令，但实际为预测错误，要求消除ret的错误指令
+
+         | CND            | F      | D      | E      | M      | W      |
+         | -------------- | ------ | ------ | ------ | ------ | ------ |
+         | **Mispredict** | Normal | Bubble | Bubble | Normal | Normal |
+         | **ret**        | Stall  | Bubble | Normal | Normal | Normal |
+         | **Combine**    | Stall  | Bubble | Bubble | Normal | Normal |
+
+       - 处理方式依旧按照Mispredict Branch, ret不作处理依然会被MB的Bubble抹除
+
+    2. E: loadRSP + D:ret(useRSP) (#match) 
+
+       - Load指令类修改了%rsp，到达Estage； ret指令读取%rsp，位于Dstage
+
+         | CND          | F     | D      | E      | M      | W      |
+         | ------------ | ----- | ------ | ------ | ------ | ------ |
+         | **Load/Use** | Stall | Stall  | Bubble | Normal | Normal |
+         | **ret**      | Stall | Bubble | Normal | Normal | Normal |
+         | **Combine**  | Stall | Stall  | Bubble | Normal | Normal |
+
+       - 先保证Load/use的争取执行，ret到正确的返回地址；下一个周期内ret依然位于D，再按照ret规则处理
+
+  - 控制逻辑的实现
+
+    产生各个刘淑娴寄存器的Bubble和Stall信号
+
+  ![pipeLogic](/Users/Miao/Desktop/pipeLogic.png)
+
+  ```C
+  bool F_bubble = 0;
+  
+  bool F_stall =
+  	/* LU: Conditions for a load/use hazard */
+  	E_icode in { IMRMOVQ, IPOPQ } &&    // Load inst
+  	E_dstM  in { d_srcA, d_srcB }       // used reg in next ins
+  	||    
+  	/* RET: Stalling at fetch while ret passes through pipeline for 3 cycles */
+  	IRET in { D_icode, E_icode, M_icode } ;
+  
+  bool D_stall =
+  	/* LU: Conditions for a load/use hazard */
+  	E_icode in { IMRMOVQ, IPOPQ } &&
+  	E_dstM  in { d_srcA, d_srcB } ;
+  
+  bool D_bubble =
+  	/* Mispredicted branch */
+  	(E_icode == IJXX && !e_Cnd)
+  	||
+  	/* RET: Stalling at fetch while ret passes through pipeline */
+      IRET in { D_icode, E_icode, M_icode } && 
+      /* Not load/use and ret combine, just ret */
+      !(E_icode in { IMRMOVQ, IPOPQ } && E_dstM in { d_srcA, d_srcB })
+  
+  bool E_stall = 0;
+  
+  bool E_bubble =
+  	/* Mispredicted branch */
+  	(E_icode == IJXX && !e_Cnd)
+      ||
+  	/* LU: Conditions for a load/use */
+  	E_icode in { IMRMOVQ, IPOPQ } && // load
+  	E_dstM in { d_srcA, d_srcB};     // use
+  
+  bool M_stall = 0;
+  /* Start injecting bubbles as soon as exception passes through memory stage */
+  bool M_bubble = m_stat in { SADR, SINS, SHLT } || W_stat in { SADR, SINS, SHLT };
+  
+  bool W_stall = W_stat in { SADR, SINS, SHLT };
+  bool W_bubble = 0;
+  ```
+
+- ### Exception
+
