@@ -9,7 +9,7 @@
 
 ​	ISA connects compiler producer and precesser designer
 
-## ○Y86-64 ISA
+## 〇 Y86-64 ISA
 
 Def ISA(指令体系结构) includes：
 ​	-State Unit;
@@ -79,7 +79,7 @@ Def ISA(指令体系结构) includes：
   - ADR = 3 : Memory address error (read and write)
   - INS = 4 : Invalid instruction
 
-## ○Logic Design and HCL
+## 〇 Logic Design and HCL
 
 - ### HCL
 
@@ -129,7 +129,7 @@ Def ISA(指令体系结构) includes：
       - register file (%rax ~ %r14)
 
 
-## ○SEQ Y86-64 Implemantation
+## 〇 SEQ Y86-64 Implemantation
 
 Instruction set + Hardware = Processer (sequential)
 
@@ -330,7 +330,7 @@ Instruction set + Hardware = Processer (sequential)
 
 
 
-## ○Y86-64 Pipeline
+## 〇 Y86-64 Pipeline
 
 - ### SEQ+ model: Rearrange  stages
 
@@ -811,3 +811,15 @@ Instruction set + Hardware = Processer (sequential)
 
 - ### Exception
 
+  异常指令之前的指令都被执行完成，之后的指令不修改可见态
+
+  1. HALT
+  2. Invalid Instruction code
+  3. Invalid Memory Address
+
+  - 多条指令引起的异常：流水线深处指令优先级最高
+  - 错误分支下执行的异常指令
+    - 错误指令被流水线控制逻辑取消
+  - 异常指令之后的指令改变了可见态
+    - 每个流水线寄存器包括状态字段stat，stat与异常指令一同流水线内传播，直到到达W阶段，发现异常并停机
+    - M和W阶段有异常抛出时，流水线控制逻辑禁止更新CC和内存
