@@ -1,4 +1,4 @@
-# CHP4 Processer Architecture
+# **CHP4** Processer Architecture
 
   Def* **ISA** (Instruction-Set Architecture): 
 
