@@ -565,7 +565,7 @@ Instruction set + Hardware = Processer (sequential)
      int aluA =[
      	E_icode in { IRRMOVQ, IOPQ }             : E_valA;
      	E_icode in { IIRMOVQ, IRMMOVQ, IMRMOVQ } : E_valC;
-     	E_icode in { ICALL, IPUSHQ }             : 8;
+     	E_icode in { ICALL, IPUSHQ }             : -8;
      	E_icode in { IRET, IPOPQ }               : 8;
      	# Other instructions don' t need ALU
      ];

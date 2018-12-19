@@ -33,7 +33,7 @@
     > - OUTPUT: Can G be colored with 2 colors.
     >
     >   if G is **bipartite** （二分图）
-    >   ​	if G **doesn't contain cycles of odd length**
+    >   ​	if G **doesn't contain cycles of                                                                                                                                                                                                                                 odd length**
     >   ​		return true
     >   ​        else return false
     >   ​        end if
