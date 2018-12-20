@@ -823,3 +823,25 @@ Instruction set + Hardware = Processer (sequential)
   - 异常指令之后的指令改变了可见态
     - 每个流水线寄存器包括状态字段stat，stat与异常指令一同流水线内传播，直到到达W阶段，发现异常并停机
     - M和W阶段有异常抛出时，流水线控制逻辑禁止更新CC和内存
+  - 流水线寄存器中的状态字段不影响指令的正常执行，会禁止之后的指令修改可见态
+  - 异常指令发到达W时停机，之前的异常状态或被Bubble掉
+
+- ### Performance Analysis
+
+  - Bubble和Stall使得流水线无法一个时钟周期内流入/流出一条指令
+
+  - 通过计算流水线执行一条指令花费的平均周期(CPI)数刻画
+    $$
+    CPI = (C_i+C_b)/C_i=1 + C_b/C_i
+    $$
+    其中Ci是流出指令的周期，Cb是流出Bubble的周期
+    $$
+    CPI = 1 + lp+mp+rp
+    $$
+    ```lp: load penalty; mp: mispredicted penalty; return penalty ```	
+
+  - | Case                | Cb   |
+    | ------------------- | ---- |
+    | Load/Use            | 1    |
+    | Mispredicted branch | 2    |
+    | ret                 | 3    |
