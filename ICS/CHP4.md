@@ -55,7 +55,7 @@ Def ISA(指令体系结构) includes：
 
 - ### Instrutions Encode
 
-  ![encode](/Users/Miao/Desktop/encode.png)
+  ![encode](./img/encode.png)
 
   - OPq
 
@@ -173,7 +173,7 @@ Instruction set + Hardware = Processer (sequential)
 
     - PC update 写入valP到PC
 
-      ![class1](/Users/Miao/Desktop/class1.png)
+      ![class1](./img/class1.png)
 
   - **Class 2:** 内存访问类：rmmovq, mrmovq
 
@@ -181,13 +181,13 @@ Instruction set + Hardware = Processer (sequential)
 
     - M stage：valE作为地址，写入valA或读出到valM
 
-      ![class2](/Users/Miao/Desktop/class2.png)
+      ![class2](./img/class2.png)
 
   - **Class 3**: 栈操作： pushq, popq
 
     - 访问内存 并且 修改寄存器%rs（rA)
 
-      ![class3](/Users/Miao/Desktop/class3.png)
+      ![class3](./img/class3.png)
 
   - Class 4: 控制转移：jxx, call, ret
 
@@ -195,13 +195,13 @@ Instruction set + Hardware = Processer (sequential)
 
     - ret和popq类似，但在Update PC阶段设置PC为valM (return addr)
 
-      ![class4](/Users/Miao/Desktop/class4.png)
+      ![class4](./img/class4.png)
 
-    ![c4cmoq](/Users/Miao/Desktop/c4cmoq.png)
+    ![c4cmoq](./img/c4cmoq.png)
 
 - ### SEQ Hardware Structure
 
-  ![hardware](/Users/Miao/Desktop/hardware.png)
+  ![hardware](./img/hardware.png)
 
 - ### SEQ Timing
 
@@ -214,7 +214,7 @@ Instruction set + Hardware = Processer (sequential)
 
   1. Fetch：
 
-     ![fetch](/Users/Miao/Desktop/fetch.png)
+     ![fetch](./img/fetch.png)
 
      ```c
      bool instr_valid = icode in {@ALL_IS};
@@ -225,7 +225,7 @@ Instruction set + Hardware = Processer (sequential)
 
   2. Decode and Write Back:
 
-     ![decode](/Users/Miao/Desktop/decode.png)
+     ![decode](./img/decode.png)
 
      ```C
      int srcA = [
@@ -255,7 +255,7 @@ Instruction set + Hardware = Processer (sequential)
 
   3. Execute
 
-     ![execution](/Users/Miao/Desktop/execution.png)
+     ![execution](./img/execution.png)
 
      ``` c
      int aluA = [
@@ -283,7 +283,7 @@ Instruction set + Hardware = Processer (sequential)
 
   4. Memory
 
-     ![memory](/Users/Miao/Desktop/memory.png)
+     ![memory](./img/memory.png)
 
      ```c
      int mem_addr =[
@@ -313,7 +313,7 @@ Instruction set + Hardware = Processer (sequential)
 
   5. Update PC
 
-     ![updatepc](/Users/Miao/Desktop/updatepc.png)
+     ![updatepc](./img/updatepc.png)
 
      ```c
      word new_ pc =[
@@ -334,7 +334,7 @@ Instruction set + Hardware = Processer (sequential)
 
 - ### SEQ+ model: Rearrange  stages
 
-  ![pcad](/Users/Miao/Desktop/pcad.png)
+  ![pcad](./img/pcad.png)
 
   - 总线信号分别存储在寄存器中
   - 下一个Cycle伊始，总线信号通过PC逻辑电路产生newPC信号
@@ -342,7 +342,7 @@ Instruction set + Hardware = Processer (sequential)
 
 - ### PIPE- model: 
 
-  ![pipe-](/Users/Miao/Desktop/pipe-.png)
+  ![pipe-](./img/pipe-.png)
 
   - Pipeline register  (down to up)
     - F: 保存PC的预测值
@@ -425,7 +425,7 @@ Instruction set + Hardware = Processer (sequential)
            e_vale --> E_valA(E_valB) // (1+)=1 /ED Hazard
            ```
 
-           ![forwarding](/Users/Miao/Desktop/forwarding.png)
+           ![forwarding](./img/forwarding.png)
 
            > - PIPE模型，用Forwarding处理DataHazard
            >
@@ -450,7 +450,7 @@ Instruction set + Hardware = Processer (sequential)
 
              下一个周期时，use指令依然在D阶段，load指令不受Bubble影响到达M阶段；该Cycle中后期m_valM Forwarding回到use指令D阶段使用
 
-             ![loaduse](/Users/Miao/Desktop/loaduse.png)
+             ![loaduse](./img/loaduse.png)
 
              - Load interlock: 在use指令的D阶段时E中插入Bubble，拉长CPI到2，降低吞吐量
 
@@ -484,7 +484,7 @@ Instruction set + Hardware = Processer (sequential)
 
   1. **PCselect & Fetch**
 
-     ![pfetch](/Users/Miao/Desktop/pfetch.png)
+     ![pfetch](./img/pfetch.png)
 
      ```c
      bool f_instr_valid = icode in {@ALL_IS};
@@ -510,7 +510,7 @@ Instruction set + Hardware = Processer (sequential)
 
   2. **Decode &WriteBack**
 
-     ![pDecodeWB](/Users/Miao/Desktop/pDecodeWB.png)
+     ![pDecodeWB](./img/pDecodeWB.png)
 
      ```c
      int d_dstE = [
@@ -559,7 +559,7 @@ Instruction set + Hardware = Processer (sequential)
 
   3. Execute
 
-     ![pexecute](/Users/Miao/Desktop/pexecute.png)
+     ![pexecute](./img/pexecute.png)
 
      ```c
      int aluA =[
@@ -594,7 +594,7 @@ Instruction set + Hardware = Processer (sequential)
 
   4. Memory
 
-     ![pmem](/Users/Miao/Desktop/pmem.png)
+     ![pmem](./img/pmem.png)
 
      ```c
      int mem_addr = [
@@ -764,7 +764,7 @@ Instruction set + Hardware = Processer (sequential)
 
     产生各个刘淑娴寄存器的Bubble和Stall信号
 
-  ![pipeLogic](/Users/Miao/Desktop/pipeLogic.png)
+  ![pipeLogic](./img/pipeLogic.png)
 
   ```C
   bool F_bubble = 0;
