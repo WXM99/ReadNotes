@@ -1,3 +1,8 @@
+---
+title: CHP9 Visual Memory
+tags: [ICS]
+---
+
 # CHP9 Visual Memory
 
 
