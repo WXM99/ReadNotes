@@ -1,6 +1,7 @@
 ---
 title: CHP4 Processer Architecture
 tags: [ICS]
+favorited: true
 ---
 
 # **CHP4** Processer Architecture
@@ -60,7 +61,7 @@ Def ISA(指令体系结构) includes：
 
 - ### Instrutions Encode
 
-  ![encode](./img/encode.png)
+  ![encode](../../ICS/img/encode.png)
 
   - OPq
 
@@ -219,7 +220,7 @@ Instruction set + Hardware = Processer (sequential)
 
   1. Fetch：
 
-     ![fetch](./img/fetch.png)
+     ![fetch](.././img/fetch.png)
 
      ```c
      bool instr_valid = icode in {@ALL_IS};

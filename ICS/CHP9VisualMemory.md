@@ -123,11 +123,30 @@
 
 - ### Realization
 
-  - Problems
+  Problems
 
-    - 空闲block组织：如何记录
-    - 放置：如何选择合适的空闲位置分配
-    - 分割：
-    - 合并
+  > 空闲block组织：如何记录
+  >
+  > 放置：如何选择合适的空闲位置分配
+  >
+  > 分割：将新分配的block放置后，如何处理剩余的部分
+  >
+  > 合并：如何处理刚刚被释放的block
 
   - Implicit Free List
+
+    ![屏幕快照 2018-12-28 23.19.02](./CHP9VisualMemory.assets/屏幕快照 2018-12-28 23.19.02.png)
+
+    - Allocator需要数据结构取定边界和状态，这些信息嵌入block本身
+
+    - Block结构
+
+      - 头部header meta-data：
+
+        存放块大小的4bytes(单字)空间；约束块双字（8b）对齐后，header后三位都为0；最低位复写0/1表示是否已分配
+
+      - 有效荷载payload
+
+        应用程序使用
+
+      - 填充padding
