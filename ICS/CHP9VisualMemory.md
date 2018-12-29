@@ -267,11 +267,124 @@
 
     1. 通用Allocator设计
 
-    ```c
-    
-    ```
+       ```c
+       #include <memlib.c>
+       extern int mem_init(void);
+       extern void *mm_malloc(size_t size);
+       extern void mm_free(void *ptr);
+       ```
+
+       memlib.c 是一个内存系统模型，可以独立于malloc包运行Allocator
+
+       mm_init初始化Allocator，成功则返回0，否则-1
+
+       mm_malloca 和 mm_free与malloc包里函数作用一致
+
+       块使用边界标记格式，双子对齐
+
+       初始化后将第一个字作为padding，紧跟一个prologue block，仅有header和footer，永不释放；之后是普通块
+
+       堆以epilogue block来结束，是一个仅有header的已分配的块，大小为0
+
+       prologue  和 epilogue作为Allocator链表形式上的首尾，消除边界条件
+
+       私有全局变量heap_listp总指向prologue/*
+
+       ![image-20181229125341271](./CHP9VisualMemory.assets/image-20181229125341271.png)
+
+       ```c
+       /* Private global variables */
+       static char *mem_ .heap; /* Points to first byte of heap */
+       static char *mem_ ,brk; /* Points to last byte of heap plus 1 */
+       static char *mem. _max_ .addr; /* Max legal heap addr plus 1*/
+       
+       /*
+       * mem_ init - Initialize the memory system model
+       */
+       void mem_ init (void)
+       {
+       	mem_heap = (char *)Malloc (MAX_ HEAP) ; .
+       	mem_brk = (char *)mem_ heap;
+       	mem_max_addr = (char *) (mem. ,heap + MAX_ ,HEAP);
+       }
+       
+       /*
+       * mem_ ,sbrk - Simple model of the sbrk function. Extends the heap
+       *
+       by incr bytes and returns the start address of the new area. In
+       *
+       this model, the heap cannot be shrunk .
+       */
+       void *mem_sbrk(int incr)
+       {
+       	char *old_brk = mem_brk;
+       	if ( (incr < O) II ((mem_brk + incr) > mem_max_addr))	{
+       		errno = ENOMEM;
+       		fprintf (stderr, "ERROR: mem_sbrk failed. Ran out of memory");
+       		return (void *)-1;
+           }
+       	mem_brk += incr;
+       	return (void *)old_brk;
+       }
+       ```
+
+    2. 操作IFL的基本常数和宏
+
+       ```c
+       /* Basic constants and macros */
+       #define WSIZE 4
+       /* Word and header/footer size (bytes) */
+       #define DSIZE 8
+       /* Double word size (bytes) */
+       #define CHUNKSIZE (1<<12)
+       /* Extend heap by this amount (bytes) */
+       #define MAX(x, y) ((x) > (y)? (x) : (y))
+       /* Pack a size and allocated bit into a word */
+       #define PACK(size, alloc) ((size) I (alloc))
+       /* Read and write a word at address p */
+       #define GET(p) (*(unsigned int *)(p))
+       #define PUT(p, val) (* (unsigned int *)(p) = (val))
+       /* Read the size and allocated fields from address p */
+       #define GET_ .SIZE(p) (GET(p) & ~0x7)
+       #define GET_ .ALLOC(p) (GET(p) & 0x1)
+       /* Given block ptr bp, compute address of its header and footer */
+       #define HDRP(bp) ((char *)(bp) - WSIZE)
+       #define FTRP(bp) ((char *)(bp) + GET, _SIZE(HDRP(bp)) DSIZE)
+       /* Given block ptr bp, compute address of next and previous blocks */
+       #define NEXT_ .BLKP(bp) ((char *)(bp) + GET_ SIZE(((char *)(bp) - WSIZE)))
+       #define PREV_ .BLKP(bp) ((char *)(bp) GET, _SIZE(((char *)(bp) DSIZE)))
+       ```
+
+    3. 创建初始空闲链表
+
+       ```c
+       
+       ```
+
+    4. 释放和合并块
+
+       ```c
+       
+       ```
+
+    5. 分配块
+
+       ```c
+       
+       ```
 
 - ### Other Structure
 
   - Explicit Free List 显式空闲链表
+
+    ![image-20181229125341271](./CHP9VisualMemory.assets/image-20181229130008453.png)
+
+    空闲块不需要主，所以数据结构指针可以存放在空闲块的主体之中；包括pred指针和succ指针，减小链表长度 (所有块个数减小到空闲块个数)
+
+    释放时间取决于排序策略
+
+    - LIFO(先进后出，队列规则)，将新释放的块放在逻辑表头(头插法)
+
+      Allocator会先检查最近释放的块，释放在常数时间完成
+
   - 分离空闲链表
