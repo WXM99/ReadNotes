@@ -248,7 +248,7 @@ $$
     >
     >   > - INDEPENDENT_SET reduce to CLIQUE
     >   >
-    >   >   > - Gc is the complete graph of G, Gm=(V, Ec);
+    >   >   > - Gc is the complete graph of G, Gc=(V, Ec);
     >   >   > - E_{\bar} = Ec - E;
     >   >   > - G_{\bar} = (V, E-{\bar})
     >   >   > - The indepentdent_set of vertex ***S*** in ***G*** is exactly ***CLIQUE*** in ***G_{\bar}*** 
