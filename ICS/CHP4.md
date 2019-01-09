@@ -19,21 +19,24 @@ Def ISA(指令体系结构) includes：
 ​	-Exceptions handling;
 
 - ### Programmer visible statement	
-  - Register × 15 (quad word -- 64bits):
+  - **Register × 15 (quad word -- 64bits):**
     %rax, %rcx, %rdx, %rbx,
     %rsp, %rbp, 
     %rsi, %rdi, %r8, %r9, %r10, %r11, %r12, %r13, %r14
-  - CC × 3:
+  - **CC × 3:**
     ZF, SF, OF
-  - PC (Line)
-  - Visual Memary (Array Model)
-  - STAT: statement of the program
+  - **PC (Line)**
+  - **Visual Memary (Array Model)**
+  - **STAT: statement of the program**
     SADR (非法地址),  SINS (非法指令),  SHLT (停机), SOK (正常)
 
 - ### Y86-64 Instructions
 
   - movq ×4:
     - irmovq, rrmovq, mrmovq, rmmovq
+
+      {{Source}} 2 {{Destination}} move 
+
     - 取地址格式：
       - Imm （绝对地址）
       - $imm(REG):  imm + REG (first index register)
@@ -45,8 +48,10 @@ Def ISA(指令体系结构) includes：
     - addq subq andq xorq
     - OP指令会设置CC
   - jmp ×7:
+
     -  jmp jle jl je jne jge jg
   - crrmovq ×6:
+
     - cmovle cmovl cmove cmovne cmovge cmovg
   - call ret
   - popq (REG 为%rsp，以内存中的值为最终值，不进行栈顶的+8操作)
@@ -72,6 +77,25 @@ Def ISA(指令体系结构) includes：
 
   - %rax(0) o %r14(E)  %REG_NONE(F)
 
+    |  寄存器  | 编码(4bits) |
+    | :------: | :---------: |
+    |   %rax   |     0x0     |
+    |   %rcx   |     0x1     |
+    |   %rdx   |     0x2     |
+    |   %rbx   |     0x3     |
+    |   %rsp   |     0x4     |
+    |   %rbp   |     0x5     |
+    |   %rsi   |     0x6     |
+    |   %rdi   |     0x7     |
+    |   %r8    |     0x8     |
+    |   %r9    |     0x9     |
+    |   %r10   |     0xA     |
+    |   %r11   |     0xB     |
+    |   %r12   |     0xC     |
+    |   %r13   |     0xD     |
+    |   %r14   |     0xE     |
+    | NONE_REG |     0xF     |
+
 - ### Exception
 
   - AOK = 1 : Normal state
@@ -88,7 +112,7 @@ Def ISA(指令体系结构) includes：
     - active
 
   - Combinational circuits to Boolean expression
-    - Input of gates: 主输入，存出输出，其他门输出
+    - Input of gates: 主输入(系统输入)，存储输出，其他门输出
     - 门的输出不可连接在一起，导致信号矛盾和非法电压
     - 无环
 
@@ -337,7 +361,7 @@ Instruction set + Hardware = Processer (sequential)
   ![pcad](./img/pcad.png)
 
   - 总线信号分别存储在寄存器中
-  - 下一个Cycle伊始，总线信号通过PC逻辑电路产生newPC信号
+  - 下一个Cycle伊始，总线信号通过PipeControll逻辑电路产生newPC信号
   - PC信号没有寄存器，为动态信号
 
 - ### PIPE- model: 
@@ -438,9 +462,9 @@ Instruction set + Hardware = Processer (sequential)
 
       3. Load/Use Hazard
 
-         -  Load转置从Memory读取值到寄存器
+         -  Load: 从Memory读取值到寄存器的操作
 
-         - 上一条指令A load过后，本条指B令再读取相同寄存器。由于A中最早只能在M阶段后产生正确值，而B在Decode阶段就需要取值，超前A‘sM一个Cycle，故Forwarding无法解决
+         - 上一条指令A load过后，本条指B令再读取相同寄存器。由于A中最早只能在M阶段后读取正确值，而B在Decode阶段就需要取值，超前A‘sM一个Cycle，故Forwarding无法解决
 
          - Handle：
 
@@ -452,7 +476,7 @@ Instruction set + Hardware = Processer (sequential)
 
              ![loaduse](./img/loaduse.png)
 
-             - Load interlock: 在use指令的D阶段时E中插入Bubble，拉长CPI到2，降低吞吐量
+             - Load interlock: 在use指令的D阶段时刻, F,D Stall, E中插入Bubble, 让load指令等在D待一个Cycle, 拉长CPI到2，降低吞吐量
 
       4. Avoid Controll Hazard
 
@@ -514,9 +538,9 @@ Instruction set + Hardware = Processer (sequential)
 
      ```c
      int d_dstE = [
-         D_ icode in {IRRMOVQ, IIRMOVQ, IOPQ}      : D_rB;
-     	D_ icode in {IPUSHQ, IPOPQ, ICALL, IRET } : RRSP;
-         1                                         : RNONE; 
+         D_icode in {IRRMOVQ, IIRMOVQ, IOPQ}      : D_rB;
+     	D_icode in {IPUSHQ, IPOPQ, ICALL, IRET } : RRSP;
+         1                                        : RNONE; 
      ]
          
      int d_dstM = [
@@ -627,10 +651,10 @@ Instruction set + Hardware = Processer (sequential)
 
         Use指令阻滞在Decode阶段，并在E**插入Bubble**：
 
-        | Decode | Execute | Memor |
-        | ------ | ------- | ----- |
-        | Use    | Load    | \     |
-        | Use    | Bubble  | Load  |
+        | Decode   | Execute   | Memor     |
+        | -------- | --------- | --------- |
+        | UseInstr | LoadInstr | \         |
+        | UseInstr | Bubble    | LoadInstr |
 
         > 阻滞Use在D：D的PIPE寄存器在时钟下降沿不写入，保持固定；同时保证F的PIPE寄存器固定；流水线在D和F进制，没有吞量
         >
@@ -640,13 +664,13 @@ Instruction set + Hardware = Processer (sequential)
 
       RET指令完成M阶段前，下一条指令时钟组织在F，直到被正确地址覆盖，延迟3个cycle
 
-      | Fetch    | Decode | Execute | Memory |
-      | -------- | ------ | ------- | ------ |
-      | ret      | \      | \       | \      |
-      | ret_next | ret    | \       | \      |
-      | ret_next | Bubble | ret     | \      |
-      | ret_next | Bubble | nop     | ret    |
-      | re_addr  | Bubble | nop     | nop    |
+      | Fetch                | Decode | Execute | Memory |
+      | -------------------- | ------ | ------- | ------ |
+      | ret                  | \      | \       | \      |
+      | ret                  | ret    | \       | \      |
+      | ret                  | Bubble | ret     | \      |
+      | ret                  | Bubble | nop     | ret    |
+      | re_addr(form W_valM) | Bubble | nop     | nop    |
 
     - Mispredicted Branch
 
@@ -659,10 +683,10 @@ Instruction set + Hardware = Processer (sequential)
           同时取回JXX指令的valP (JXX在该周期内完成E阶段，valP在M_valA取得)作为下一条指令的地址（正确地址进入Fetch阶段）
           该周期内的流水线状态
 
-          | Fetch     | Decode        | Execute       | Memory |
-          | --------- | ------------- | ------------- | ------ |
-          | 错误指令2 | 错误指令1     | JXX           |        |
-          | 正确指令  | 指令2被Bubble | 指令1被Bubble | JXX    |
+          | Fetch                 | Decode        | Execute       | Memory |
+          | --------------------- | ------------- | ------------- | ------ |
+          | 错误指令2             | 错误指令1     | JXX           |        |
+          | 正确指令(form M_valA) | 指令2被Bubble | 指令1被Bubble | JXX    |
 
           再下一个Cycle变为正确指令正常执行，复写掉错误指令，浪费两个Cycle
 
@@ -676,7 +700,7 @@ Instruction set + Hardware = Processer (sequential)
 
       - ret指令检查icode
 
-      - load/use指令组合检查e_icode(为Load类)和d_src(Use load中的汇)
+      - load/use指令组合检查e_icode(为Load类)和d_src(为load中的汇)
 
       - Mispredicted branch时在JXX指令到达M寄存器时即可发现并纠正(M_valP)
 
@@ -726,17 +750,17 @@ Instruction set + Hardware = Processer (sequential)
 
     特殊处理的状态枚举
 
-    |                                    | Decode | Execute | Memory |
-    | ---------------------------------- | ------ | ------- | ------ |
-    | Load/Use                #          | Use    | Load    | \      |
-    | Mispredicted branch *              | \      | JXX     | \      |
-    | ret(1)                        #  * | ret    | \       | \      |
-    | ret(2)                             | Bubble | ret     | \      |
-    | ret(3)                             | Bubble | Bubble  | ret    |
+    ![屏幕快照 2019-01-09 23.36.43](./CHP4.assets/屏幕快照 2019-01-09 23.36.43.png)
 
     互斥操作组合：
 
     1. E: JXX + D:ret (*match)
+
+       ```assembly
+       jne Done
+       ret 
+       Done :
+       ```
 
        - Jmp taken到ret指令，但实际为预测错误，要求消除ret的错误指令
 
@@ -749,6 +773,11 @@ Instruction set + Hardware = Processer (sequential)
        - 处理方式依旧按照Mispredict Branch, ret不作处理依然会被MB的Bubble抹除
 
     2. E: loadRSP + D:ret(useRSP) (#match) 
+
+       ```assembly
+       mrmovq (%rdx), %rsp
+       ret     #使用M(rsp)作为retAddr
+       ```
 
        - Load指令类修改了%rsp，到达Estage； ret指令读取%rsp，位于Dstage
 
@@ -840,8 +869,8 @@ Instruction set + Hardware = Processer (sequential)
     $$
     ```lp: load penalty; mp: mispredicted penalty; return penalty ```	
 
-  - | Case                | Cb   |
-    | ------------------- | ---- |
-    | Load/Use            | 1    |
-    | Mispredicted branch | 2    |
-    | ret                 | 3    |
+  - | Case                | CycleBubble |
+    | ------------------- | ----------- |
+    | Load/Use            | 1           |
+    | Mispredicted branch | 2           |
+    | ret                 | 3           |
