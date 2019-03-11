@@ -58,9 +58,12 @@ $gcc -03 test.c
 
 ## 〇 Optimization in Code
 
+- 消除循环的低效率 (循环中的重计算)
+- 减少过程调用 (循环中的函数调用)
+- 消除不必要的内存引用 (累计到局部变量后赋值到地址)
+- 循环展开 (提高并行度)
 
-
-## 〇 Optimization in Machine
+## 〇 Optimization in Machine (5.7)
 
 - 现代处理器结构
 
@@ -119,9 +122,9 @@ $gcc -03 test.c
 
   - 功能单元的性能
 
-    - Latency：以一条指令为观察对象，记录其完成的总时间 （seq时间）
+    - Latency：以一条指令为观察对象，记录其完成的总时间 （seq的单指令CPI）
 
-    - Issue Time：相邻同指令完成的时间间隔 （执行频率）
+    - Issue Time：相邻同指令完成的时间间隔 （Pipe执行频率）
 
     - Capacity：执行运算的功能单元数量 （并行上限）
 
@@ -143,7 +146,7 @@ $gcc -03 test.c
 
       （issue = 1代表完全流水线化的操作，Latency = Issue的为强过程依赖操作）
 
-    - Throughput：= 1/Issue （周期完成执行量，最大吞吐量）
+    - Throughput：= 1/Issue （单周期完成指令数量，最大吞吐量）
 
       Throughput  * Issue = Capacity
 
