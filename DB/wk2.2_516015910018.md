@@ -29,5 +29,5 @@ G(Π_{ID}(instructor)-Π_{ID}(ρ_{(s\_id, ID)}(advisor)))
 $$
 4)
 $$
-Π_{ID, name}(Student)⋈Π_{ID}(σ_{_{dept\_name='SE'}}(takes⋈course))
+Π_{ID, name}((student⋈takes)÷Π_{course\_id}(σ_{_{dept\_name='SE'}}(course)))
 $$
