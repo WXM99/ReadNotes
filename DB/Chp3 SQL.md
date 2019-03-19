@@ -46,9 +46,93 @@ update
 
   Select => Π
 
-  - distinct
+  - distinct: make result from bag to set
   - order by (desc, acse)
-  - like '%' '_'
-  - *star
-  - as (rename)
+  - like '%', '_':  
+    - "%" free string match
+    - "_" not null match
+  - \*  (star): all attrs
+  - arithmetic calculation
+  - as (rename select clause)
+
+- Table variables (from clause, space + rename)
+
+  - in the from clause
+  - make queries more readable 
+  - rename relations used in from clause 
+  - **rename for 2 instance of the same relation **
+
+- Set operators
+
+  - Union : connect two (result) relations
+  - Intersect: Self Join to substitute
+  - Except (minus): unsubstitute
+
+- sub-queries in "where"
+
+  - sub-query: nested select statement
+
+    ```sql
+    SELECT sID, sName
+    FROM Student
+    WHERE sID in (     # "in" is a set operator
+    	SELECT sID 
+        FROM Apply
+        WHERE major = "CS"
+    );
+    ```
+
+  - sub-query substituted by Joining 
+
+    ```sql
+    SELECT DISTINCT Student.sID, sName
+    FROM Student, Apply
+    WHERE Student.sID = Applt.sID and major = "CS";
+    ```
+
+  - except substituted by sub-query
+
+    ```sql
+    SELECT sID, sName
+    FROM Student
+    WHERE sID in (
+    	SELECT sID
+        FROM Apply
+        WHERE major = "CS"
+    ) and sID not in (
+    	SELECT sID
+        FROM Apply
+        WHERE major = "EE"
+    )
+    ```
+
+  - EXIST to sub-query to test empty
+
+    ```sql
+    SELECT cName, state
+    FROM College C1
+    WHERE exists (
+    	SELECT * 
+        FROM College C2
+        WHERE C2.state = C1.state
+        and C1.cName <> C2.cName
+    ) 
+    ```
+
+  - sub-query substitute MAX
+
+    ```sql
+    SELECT cName 
+    FROM College C1
+    WHERE not exists (
+    	SELECT * from College C2
+        WHERE C2.enrollment > C1.enrollment
+    )
+    ###or
+    SELECT S1.Sname, S1.GPA
+    FROM Student S1,Student S2
+    WHERE S1.GPA > all(S2.GPA)
+    ```
+
+    
 
