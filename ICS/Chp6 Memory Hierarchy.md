@@ -6,9 +6,44 @@
 
 ## 1. Storage techs
 
-- SRAM
-- DRAM
+- RAM (Random access memory)
+
+  - Dynamic: Cheap, Slower
+
+    - be used as Main Memory plus 
+      the frame buffer of a graphic system
+    - Several hundreds of thousands of MB.
+    - charging on a capacitor for each bit
+
+  - Static:  Faster, expensive
+
+    - be used as Cache Memory
+
+    - On and Off CPU chip
+
+    - No more than a few MB in DesktopSys
+
+    - Bistable (双稳态) memory cell for each  bit
+
+      |      | Transistor /bit | Access Time | Persistent | Sensitive | Cost  | Application         |
+      | ---- | --------------- | ----------- | ---------- | --------- | ----- | ------------------- |
+      | S    | 6               | 1×          | ✅          | ❌         | 1000× | Cache Mem           |
+      | D    | 1               | 10×         | ❌          | ✅         | 1×    | Main Mem, frame Buf |
+
+  - Conventional DRAMs
+
+    - structure
+
+      ![image-20190320205745736](./Chp6 Memory Hierarchy.assets/image-20190320205745736.png)
+
+    - READ
+
+      ![image-20190320205815334](./Chp6 Memory Hierarchy.assets/image-20190320205815334.png)
+
+    - Memory Modules
+
 - Disk
+
 - SSD
 
 ## 2. Locality
@@ -34,4 +69,16 @@
 
 ## 4. Cache Memory
 
-p
+> Early stage: 
+>
+> 1. register file in CPU 
+> 2. DRAM main memory 
+> 3. Disk memory
+
+- Add SRAM L1
+
+  Between REG and Main memory
+
+  Access in 4 cycles
+
+- Add 
