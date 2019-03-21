@@ -42,6 +42,58 @@
 
     - Memory Modules
 
+      ![image-20190320212522259](./Chp6 Memory Hierarchy.assets/image-20190320212522259.png)
+
+  - Enhanced DRAMs
+
+    - FPM DRAMs (Fast Page Mode)
+
+      faster when read SuperCells from the same line 
+
+    - EDO DRAM (Extend Data Out DRAM)
+
+      FPM DRAM to handle dense CAS
+
+    - SDRAM (Synchronous DRAM)
+
+      Faster
+
+    - DDR SDRAM (Double Data-Rate Sychronous DRAM)
+
+      SDRAM that can use two clocks as input signal to double the speed
+
+      prefetch buffer (increase the effective bandwidth) size: 
+
+      DDR (2 bits); DDR2 (4-bits); DDR3 (8 bits)
+
+    - VRAM (Video RAM)
+
+      Output whole line and move
+
+      Parallel read and write
+
+  - Nonvolatile Memory
+
+    - Volatile: SRAMs and DRAMs will lose stored info when the suply voltage is turned off
+    - ROM (Read-Only Memory): 
+      - PROM (Programmable ROM): can be programmed only once;
+      - EPROM: erasable PROM
+      - flash memory
+      - firmware: program stored in ROM
+
+  - Accessing Main Memory
+
+    ![image-20190321123044150](./Chp6 Memory Hierarchy.assets/image-20190321123044150.png)
+
+    I/O bridge: 
+
+    - North bridge: connect to main mem
+    - South bridge: connect to IO devices
+
+    Data load
+
+    ![image-20190321133514570](./Chp6 Memory Hierarchy.assets/image-20190321133514570.png) 
+
 - Disk
 
 - SSD
