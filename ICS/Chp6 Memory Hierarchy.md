@@ -2,7 +2,7 @@
 
 > Program Locality:
 >
-> 程序趋于访问相同, 或是邻近的数据项集合
+> 程序趋于访问相同, 或是邻近的数据项集合.
 
 ## 1. Storage techs
 
@@ -368,27 +368,143 @@
 
 - 地址中间位作为SetIndex
 
-  
+  使连续的内存分散于不同的set中, 提高Cache利用率
 
 ### 4.3 Set Associative
 
+> E-way set associative : 1 < E < C/B (S > 1)
 
+![image-20190323004339478](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323004339478.png)
+
+- Set Selection
+
+  Identity by SetIndex in Address.
+
+  ![image-20190323005806625](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323005806625.png)
+
+- Line Matching and Word Selection
+
+  每个Set可视为是一张(tag+valid, value)表
+
+  ![image-20190323010423724](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323010423724.png)
+
+  Cache在某个特定的Set取值时, 必须搜索组内的每一行, 找到有效且匹配的行在按blockOffset取值, 为Hit.
+
+- Line Replacement on Misses
+
+  Miss后从内存取出对应块. 若块的SetIndex对应set包含空行, 则直接放入.
+
+  若Set满行, 则执行替换策略:
+
+  - Random
+  - LFU (Least-Frequently-Used): 替换某个时间内命中最少的行
+  - LRU (Least-Recently-Used): 替换命中时间最久远的一行
 
 ### 4.4 Fully Associative Caches
 
+> 只有一个Set, E = C/B
 
+![image-20190323011219547](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011219547.png)
+
+* Set Selection
+
+  地址中没有SetIndex, 只含有tag和BlockOffset
+
+  ![image-20190323011604799](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011604799.png)
+
+* Line Match and Word Selection
+
+  ![image-20190323011735483](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011735483.png)
+
+  适合小的Cache. 例如TLB (VM中的翻译备用缓冲)
 
 ### 4.5 Issues with Writes
 
+* Write hit
 
+  要写入的地址已经在Cache中, 则更新其在Cache中的副本
+
+  * Write-through
+
+    立即将Cache中的副本写回到紧接着的低级层中. 每次写回引起总流量
+
+  * Write-Back
+
+    尽可能推迟更新, 只有当block在Cache中被驱逐时才回写到低级层中
+
+    局部性减少了总流浪. Cache为每个块额外维护一个dirtyBit表明块是否被修改过
+
+* Write miss
+
+  * Write-allocate
+
+    将低级层中的对块加载到Cache中, 然后更新Cache.
+
+    想利用空间局部性, 但是miss会导致块从低级层传送到Cache
+
+  * No-write-allocate
+
+    避开Cache, 直接写回到低级层中.
+
+* Write-back 搭配 Write-allocate; Write-through 搭配 No-write-allocate
 
 ### 4.6 Anatomy of a Real Cache Hierachy
 
+- Cache不仅储存数据, 还要储存指令
 
+  - 只保存指令的叫i-cache; 只保存数据的叫d-cache
+  - 即保存数据又保存指令的叫unified cache
+
+- Intel Core i7处理器的cache的层次结构
+
+  ![image-20190323165342086](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323165342086.png)
+
+  - 每个Chip有4个Core, 每个Core有自己私有的L1 i-cache, L1 d-cache, L2 unified cache和Chip上所以核心共享的L3 unified cache. 所有CPU上的Cache都是SRAM
+
+  ![image-20190323171447211](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323171447211.png)
 
 ### 4.7 Performance Impact of Cache Parameters
 
+> Cache的性能指标:
+>
+> - Miss rate: 程序执行时, 内存引用中Cache不命中的比率;  = #misses/#references
+> - Hit rate: 命中Cache占内存引用比率; = 1 - Miss rate
+> - Hit time: Cache存送一个word到CPU的时间. 包括SetSelection, LineIdentification和WordSelection. L1的Hit  time是several clock cycles
+> - Miss penalty: Miss后需要的额外的时间. L1-L2为数10个cycles, L3为50, 主存为200
 
+- Impact of Cache Size
+
+  大的CacheSize可以提高命中率
+
+  但是拉长命中时间
+
+- Impact of Block Size
+
+  大的Block Size可以充分利用空间局部性, 提高命中率
+
+  但是减小行数, 损害时间局部性好的程序命中率, 同时拉长Miss Penalty
+
+  (大的Block Size利于空间局部性, 多的Cache Line利于时间局部性)
+
+  i7的block为64Byte
+
+- Impact of Associativity
+
+  Associativity表征CacheLine的内聚度, 即每个Set包含的CacheLine的数量E
+
+  大的E降低了冲突不命中发生抖动的可能性
+
+  但是成本更高, 速度变低. 每行需要更多的tag Bits和额外LRU状态位以及控制逻辑. Hit time和Miss penalty也会增加.
+
+  Associativity的大小变为Hit time和Miss penalty的折中. L1,L2 E=8; L3 E=16
+
+- Impact of Writting Strategy
+
+  Write-through可以独立于Cache的write buffer来更新主存. Miss penalty不大.
+
+  Write-back 传送少, 可以分配更多的内存带宽给DMA的I/O设备.
+
+  越靠近底层, 越有可能使用Write-back来平摊时间开销
 
 ## 5 Cache-Friendly Code
 
