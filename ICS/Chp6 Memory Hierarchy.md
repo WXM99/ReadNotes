@@ -508,7 +508,25 @@
 
 ## 5 Cache-Friendly Code
 
+- Common case goes fase
 
+- Minimize Cache misses in each inner loop
+
+  - 每次循环中的平均miss次数
+
+    min(1, stride_in_byte/B)
+
+    B是cache的blockSize. stride_in_byte 是循环访问VM地址的单步长
+
+  - 尽量使用Reg中的局部变量提高时间局部性
+
+  - 小步长对内存的引用提高空间局部性
 
 ## 6 The Impact on Performance
+
+### 6.1 The Memory Mountain
+
+### 6.2 Rearranging Loops
+
+### 6.3 Exploiting Locality
 
