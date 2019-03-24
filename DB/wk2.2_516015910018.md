@@ -25,7 +25,7 @@ $$
 
 3)
 $$
-G(Π_{ID}(instructor)-Π_{ID}(ρ_{(s\_id, ID)}(advisor)))
+G_{count(*)}(Π_{ID}(instructor)-Π_{ID}(ρ_{(s\_id, ID)}(advisor)))
 $$
 4)
 $$
