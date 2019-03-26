@@ -526,7 +526,132 @@
 
 ### 6.1 The Memory Mountain
 
+- Read bandwidth (Read throughput)
+
+  程序从存储系统的读取速率 (字节每秒; 兆字节每秒)
+
+  吞吐量测试: 紧密循环程序中发出的一系列读请求
+
+  (测试代码: [memory_mountain.c](./Chp6 Memory Hierarchy.assets/mountain.c))
+
+  ![Slide7](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/Slide7.png)
+
+  - ridges × 4 (perpendicular to SIZE axis)
+
+    对应于L1Cache, L2Cache, L3Cache和mainMemory内的时间局部性
+
+    - L2, L3随着步长增加, 空间局部性下降, 速率下降
+    - 每条ridges都在步长方向下降, 尽管size大到只能放进MainMemory. 即时间局部性很差时, 空间局部性依然可优化
+    - 步长为1时, L1, L2, L3差别不大, 由于现代处理器采用预取机制, 自动识别引用模式 
+
 ### 6.2 Rearranging Loops
+
+```c
+/***********************************************
+ * Six different versions of matrix multiply 
+ ***********************************************/
+void ijk(array A, array B, array C, int n) 
+{
+    int i, j, k;
+    double sum;
+
+/* $begin mm-ijk */
+for (i = 0; i < n; i++) 
+    for (j = 0; j < n; j++) {
+	sum = 0.0;
+        for (k = 0; k < n; k++)
+            sum += A[i][k]*B[k][j];
+        C[i][j] += sum;
+    }
+/* $end mm-ijk */
+
+}
+
+void jik(array A, array B, array C, int n) 
+{
+    int i, j, k;
+    double sum;
+
+/* $begin mm-jik */
+for (j = 0; j < n; j++) 
+    for (i = 0; i < n; i++) {
+	sum = 0.0;
+	for (k = 0; k < n; k++)
+	    sum += A[i][k]*B[k][j];
+	C[i][j] += sum;
+    }
+/* $end mm-jik */
+}
+
+void ikj(array A, array B, array C, int n) 
+{
+    int i, j, k;
+    double r;
+    
+    /* $begin mm-ikj */
+for (i = 0; i < n; i++)
+    for (k = 0; k < n; k++) {
+	r = A[i][k];
+	for (j = 0; j < n; j++)
+	    C[i][j] += r*B[k][j];
+    }
+/* $end mm-ikj */
+}
+
+void kij(array A, array B, array C, int n)
+{
+    int i, j, k;
+    double r;
+
+    /* $begin mm-kij */
+for (k = 0; k < n; k++)
+    for (i = 0; i < n; i++) {
+	r = A[i][k];
+	for (j = 0; j < n; j++)
+	    C[i][j] += r*B[k][j];
+    }
+/* $end mm-kij */
+}
+
+void kji(array A, array B, array C, int n)
+{
+    int i, j, k;
+    double r;
+
+/* $begin mm-kji */
+for (k = 0; k < n; k++)
+    for (j = 0; j < n; j++) {
+	r = B[k][j];
+	for (i = 0; i < n; i++)
+	    C[i][j] += A[i][k]*r;
+    }
+/* $end mm-kji */
+}
+
+void jki(array A, array B, array C, int n)
+{
+    int i, j, k;
+    double r;
+
+/* $begin mm-jki */
+for (j = 0; j < n; j++)
+    for (k = 0; k < n; k++) {
+	r = B[k][j];
+	for (i = 0; i < n; i++)
+	    C[i][j] += A[i][k]*r;
+    }
+/* $end mm-jki */
+}
+```
+
+![slide_37](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/slide_37.jpg)
 
 ### 6.3 Exploiting Locality
 
+- Focuse on the inner loops
+
+- Maximize the spatial locality by R/L with **STRIDE-1 sequentially*
+
+- Maximize the temporal locality by usring an data obj AOAP once it has been load in Cache;
+
+  (尽可能重复使用已经加载过的数据对象)
