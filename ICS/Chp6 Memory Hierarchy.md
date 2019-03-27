@@ -183,7 +183,7 @@
 
 - Storage  Technology Trends
 
-  ![image-20190321223510776](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190321223510776.png)
+  ![image-20190321223510776](./Chp6 Memory Hierarchy.assets/image-20190321223510776.png)
 
   总结: 不同存储技术之间的差距要求现代计算机使用基于SRAM的Cache来弥补处理器-内存的性能差距; 弥补的前提是应用程序的局部性 (locality).
 
@@ -350,7 +350,7 @@
 
   检查地址中t位与唯一的一行的tag匹配, 且valid为1. 满足则Hit.
 
-  ![image-20190322223513211](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190322223513211.png)
+  ![image-20190322223513211](./Chp6 Memory Hierarchy.assets/image-20190322223513211.png)
 
 - Word Selection
 
@@ -374,19 +374,19 @@
 
 > E-way set associative : 1 < E < C/B (S > 1)
 
-![image-20190323004339478](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323004339478.png)
+![image-20190323004339478](./Chp6 Memory Hierarchy.assets/image-20190323004339478.png)
 
 - Set Selection
 
   Identity by SetIndex in Address.
 
-  ![image-20190323005806625](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323005806625.png)
+  ![image-20190323005806625](./Chp6 Memory Hierarchy.assets/image-20190323005806625.png)
 
 - Line Matching and Word Selection
 
   每个Set可视为是一张(tag+valid, value)表
 
-  ![image-20190323010423724](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323010423724.png)
+  ![image-20190323010423724](./Chp6 Memory Hierarchy.assets/image-20190323010423724.png)
 
   Cache在某个特定的Set取值时, 必须搜索组内的每一行, 找到有效且匹配的行在按blockOffset取值, 为Hit.
 
@@ -404,17 +404,17 @@
 
 > 只有一个Set, E = C/B
 
-![image-20190323011219547](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011219547.png)
+![image-20190323011219547](./Chp6 Memory Hierarchy.assets/image-20190323011219547.png)
 
 * Set Selection
 
   地址中没有SetIndex, 只含有tag和BlockOffset
 
-  ![image-20190323011604799](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011604799.png)
+  ![image-20190323011604799](./Chp6 Memory Hierarchy.assets/image-20190323011604799.png)
 
 * Line Match and Word Selection
 
-  ![image-20190323011735483](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323011735483.png)
+  ![image-20190323011735483](./Chp6 Memory Hierarchy.assets/image-20190323011735483.png)
 
   适合小的Cache. 例如TLB (VM中的翻译备用缓冲)
 
@@ -457,11 +457,11 @@
 
 - Intel Core i7处理器的cache的层次结构
 
-  ![image-20190323165342086](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323165342086.png)
+  ![image-20190323165342086](./Chp6 Memory Hierarchy.assets/image-20190323165342086.png)
 
   - 每个Chip有4个Core, 每个Core有自己私有的L1 i-cache, L1 d-cache, L2 unified cache和Chip上所以核心共享的L3 unified cache. 所有CPU上的Cache都是SRAM
 
-  ![image-20190323171447211](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/image-20190323171447211.png)
+  ![image-20190323171447211](./Chp6 Memory Hierarchy.assets/image-20190323171447211.png)
 
 ### 4.7 Performance Impact of Cache Parameters
 
@@ -534,7 +534,7 @@
 
   (测试代码: [memory_mountain.c](./Chp6 Memory Hierarchy.assets/mountain.c))
 
-  ![Slide7](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/Slide7.png)
+  ![Slide7](./Chp6 Memory Hierarchy.assets/Slide7.png)
 
   - ridges × 4 (perpendicular to SIZE axis)
 
@@ -546,105 +546,9 @@
 
 ### 6.2 Rearranging Loops
 
-```c
-/***********************************************
- * Six different versions of matrix multiply 
- ***********************************************/
-void ijk(array A, array B, array C, int n) 
-{
-    int i, j, k;
-    double sum;
+[Matrix_mul.c](./Chp6 Memory Hierarchy.assets/mm.c)
 
-/* $begin mm-ijk */
-for (i = 0; i < n; i++) 
-    for (j = 0; j < n; j++) {
-	sum = 0.0;
-        for (k = 0; k < n; k++)
-            sum += A[i][k]*B[k][j];
-        C[i][j] += sum;
-    }
-/* $end mm-ijk */
-
-}
-
-void jik(array A, array B, array C, int n) 
-{
-    int i, j, k;
-    double sum;
-
-/* $begin mm-jik */
-for (j = 0; j < n; j++) 
-    for (i = 0; i < n; i++) {
-	sum = 0.0;
-	for (k = 0; k < n; k++)
-	    sum += A[i][k]*B[k][j];
-	C[i][j] += sum;
-    }
-/* $end mm-jik */
-}
-
-void ikj(array A, array B, array C, int n) 
-{
-    int i, j, k;
-    double r;
-    
-    /* $begin mm-ikj */
-for (i = 0; i < n; i++)
-    for (k = 0; k < n; k++) {
-	r = A[i][k];
-	for (j = 0; j < n; j++)
-	    C[i][j] += r*B[k][j];
-    }
-/* $end mm-ikj */
-}
-
-void kij(array A, array B, array C, int n)
-{
-    int i, j, k;
-    double r;
-
-    /* $begin mm-kij */
-for (k = 0; k < n; k++)
-    for (i = 0; i < n; i++) {
-	r = A[i][k];
-	for (j = 0; j < n; j++)
-	    C[i][j] += r*B[k][j];
-    }
-/* $end mm-kij */
-}
-
-void kji(array A, array B, array C, int n)
-{
-    int i, j, k;
-    double r;
-
-/* $begin mm-kji */
-for (k = 0; k < n; k++)
-    for (j = 0; j < n; j++) {
-	r = B[k][j];
-	for (i = 0; i < n; i++)
-	    C[i][j] += A[i][k]*r;
-    }
-/* $end mm-kji */
-}
-
-void jki(array A, array B, array C, int n)
-{
-    int i, j, k;
-    double r;
-
-/* $begin mm-jki */
-for (j = 0; j < n; j++)
-    for (k = 0; k < n; k++) {
-	r = B[k][j];
-	for (i = 0; i < n; i++)
-	    C[i][j] += A[i][k]*r;
-    }
-/* $end mm-jki */
-}
-```
-
-![slide_37](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp6 Memory Hierarchy.assets/slide_37.jpg)
+![slide_37](./Chp6 Memory Hierarchy.assets/slide_37.jpg)
 
 ### 6.3 Exploiting Locality
 
