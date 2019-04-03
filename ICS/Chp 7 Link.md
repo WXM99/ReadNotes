@@ -133,18 +133,112 @@ Binary relocatable object file
 
 - Sections between header and section header table 
 
-  - .text: machine code of the compiled program
+  > - .text: machine code of the compiled program
+  >
+  > - .rodata: read-only data. like jump table in switch, strings in printf
+  >
+  > - .data: 初始化的全局变量; 初始化的静态C变量 (local C variables are in stack or regs)
+  >
+  > - .bss: 未初始化的全局变量, 未初始化的静态变量, 所有被初始化为0的全局, 静态变量
+  >
+  >   obj file中这个section不占据实际空间, merely a place holder.
+  >
+  >   区分初始化和未初始化的var为了节省空间. 
+  >
+  >   未初始化的变量不用占据然和实际的存储空间, 运行时内存中分配这些变量为0
+  >
+  > - .symtab: symbol table. 存放程序中的函数, 全局变量的**定义和引用**信息
+  >
+  >   每个relocatable obj file都有. 不包含局部变量的entries
+  >
+  > - .rel.text: .text section中的location list. linker结合这个obj file时需要修改这些置. 调用外部函数和引用全局变量的指令都需要修改. executable obj file 中不需要重定位信息, 除非显式指明linker保留.
+  >
+  > - .rel.data: 模块中引用或定义的全局变量的重定位信息
+  >
+  >   已初始化的全局变量如果初始值是一个全局变量的地址或者外部定义函数的地址, 则需要在link时被修改
+  >
+  > - .debug: 调试符号表, 具有局部变量和类型定义的entries和C的源文件. -g编译时带有
+  >
+  > - .line: 原始C源程序行号和.text中机器指令的映射. -g编译时具有
+  >
+  > - .strtab: 字符串表. 包括symtab和debug中的符号表和header中的section names. 本质上是一个以null结尾的string sequence
 
-  - .rodata: read-only data. like jump table in switch, strings in printf
+## 5. Symbol and Symbol Tables
 
-  - .data: 初始化的全局变量; 静态C变量 (local C variables are in stack or regs)
+- Every relocatable object file (module m) has a symbol table 包含m定义和引用的符号信息, 每个symbol分为:
+  - Global symbols in: 由m定义并能被其他module引用. 如非静态函数和全局变量
 
-  - .bss: 未初始化的全局变量, 静态变量, 所有被初始化为0的全局, 静态变量
+  - Global symbols out: 其他模块定义并被m引用的全局符号 (外部符号 extern UNDEF)如其他模块中的非静态函数和全局变量
 
-    obj file中这个section不占据实际空间, merely a place holder.
+  - Local symbols: 只被m定义和引用的局部符号. 静态C函数和全局变量, 在m中任何位置可见, 但是不能被其他模块引用
 
-    区分初始化和未初始化的var为了节省空间. 
+  不同于局部变量, 然而static的过程变量会在data or bss中, 并在symbol table中创建唯一名字的local linker symbol
 
-    未初始化的变量不用占据然和实际的存储空间, 运行时内存中分配这些变量为0
+Symbol table是汇编器产生的, 使用的是.s中的符号. 表中每一个entry的format
 
-  - .symtab: symbol table. 存放程序中的函数, 全局变量的**定义和引用**信息
+```c
+typedef struct {
+  int name;        /* Offset in strtab */
+  char type: 4,    /* Function or Object */
+  		 binding: 4; /* Local or Global */
+  char reserved;   /* Unused */
+  short section;   /* Section header table index */
+  long value;      /* Section offset or abs addr */
+  long size;       /* Object size in byte*/
+} Elf64_Symbol
+```
+
+- name是对应的名字在strtab的offset, 指向以null结尾的string
+
+- value是符号的名字, 对于relocatable来说是距离section header的偏移, 对于executable来说是绝对地址
+
+- size是目标大小
+
+- symtab除了符号entries, 还可以包含section的entries和原始源文件路径名entries
+
+- section表示这些符号被分配到的section在section header table的引索
+
+  pseudosections (只在relocatable带有) 在section header table中没有对应条目, 所以symbol的section会被linker特殊化解析为:
+
+  - ABS: 不该被relocate的符号
+  - UNDEF: 未定义的符号 (引用的extern外部符号, 包括函数)
+  - COMMON: 还未分配位置的未初始化的数据目标 (value有对齐要求, size有最小大小)
+    - COMMON section: 未初始化的全局变量
+    - .bss section: 未初始化的静态变量, 初始化为0的全局或静态变量
+
+## 6. Symbol Resolution
+
+- Linker 通过 associate each symbol reference with a certain symbol definition (in  the input relocatable object file's symbol table) 来做 symbol resolution.
+
+- 定义和引用在同一模块里:
+
+  由编译器检查定义唯一, 同时编译器还保证静态局部变量(具有local linker symbol)名字唯一
+
+- Compiler处理全局符号
+
+  不是当前模块定义的symbol(变量名 函数名)会假设在其他模块中进行过定义
+
+  在symtab中生成一个entry (section = UNDEF), 交给linker处理
+
+  Linker在所有模块中都找不到的话则报错
+
+  ### 6.1 Duplicate Symbol Names
+
+- 强弱符号 (GLOBAL 不考虑static)
+  - 强符号: 函数和已初始化(包括初始化为0)的全局变量 (.text .data UNDEF .bss) 
+  - 弱符号: 未初始化的全局变量 (COMMON)
+
+- 强弱规则: 
+
+  1. 不允许多个同名强符号
+  2. 若强符号和若符号同名, 选择强符号
+  3. 多个弱符号同名, 选择任意
+  4. 同名弱符号可进行强制的类型转换, 带来内存位覆盖的现象
+  5. 强符号归类.data or .bss, 弱符号归类到COMMON将决定权交给Linker
+
+- 静态构造必须模块内唯一, 分配到.data or .bss (不存在弱符号定义不明问题)
+
+  多文件静态重名没有影响, 相互独立
+
+### 6.2 Linking with Static Libraries
+
