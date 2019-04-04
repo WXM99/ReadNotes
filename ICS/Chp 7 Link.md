@@ -242,3 +242,109 @@ typedef struct {
 
 ### 6.2 Linking with Static Libraries
 
+- Linker的工作方式
+
+  - 读取relocatable object file, 连接后形成executable object file
+  - 复制静态库到目标文件并输出executable object file
+    - 静态库: 相关目标文件打包成一个单独的文件, 作为linker的输入
+    - 常见的静态库: ISO C99定义的IO库
+
+- 公共库的备选提供方式
+
+  - 编译器集成. 如Pascal
+
+  - 发布独立的库relocatable object file
+
+    linux> gcc main.c /usr/lib/libc.o
+
+    缺点在于库文件的副本太多, 运行时代码太多, 库的编译太漫长
+
+  - 每个标准函数创建独立的relocatable object file
+    linux> gcc main.c /usr/lib/printf.o ...
+
+    缺点在于编译调用过程繁琐耗时
+
+  - 静态库解决不同方法的缺点
+
+    库函数为独立的模块, 在进行整体的静态库文件封装. 编译过程时指定库文件的名字来链接库中定义的函数
+
+    linux> gcc main.c /usr/lib/libc.a
+
+    链接时只复制被引用的目标模块,  提高空间利用率
+
+- 静态库文件格式
+
+  - archive 存档文件
+
+  - 是一组链接的relocatable object file集合
+
+  - archive文件头部描述了其包含的成员目标文件的大小和位置
+
+  - 通过AR工具为自定义的文件创建archive
+
+    linux> ar rcs arc_name.a reobj1.o reobj2.o
+
+    在文件中或头文件声明过函数后就可以利用自定义的archive编译链接文件了
+
+    linux> gcc -c main.c
+
+    linux> gcc -static -o prog main.o ./arc_name.a
+
+  - 链接器行为: -static表示构建一个完全链接的executable 加载时不需要再次链接
+
+    在archive没有被源文件引用的模块不会被连接, 不会进入executable
+
+### 6.3  Static Libraries to Resolve Reference
+
+- Linker链接静态库采用了解析外部引用的方式(resolve external references)
+
+  - Symbol resolution阶段: Linker从左向右扫描命令行上的relocatable object file和archive
+  - Linker维护一个relocatable的集合E, E集合将会被合并为executable
+  - 维护一个未解析符号集合U
+  - 维护一个之前输入文件中定义过的符号集合D
+  - 初始态: E, U, D都是空集
+
+- 解析过程:
+
+  - 扫描cmd line输入文件f, 判断是object file还是archive
+
+  - 若为object file, 则将f放入E, 根据f的symtab填补D, U
+
+  - 若为archive, 则尝试将U中的符号和archive中的成员匹配
+
+    - 扫描archive中的成员文件. 
+    - 若成员文件m定义了U中一个符号引用, 则添加m到E中
+    - 删减U(根据符号), 扩充D(根据m). 
+    - 扫描直到U, D不发生变化. 
+    - 此时未进入E的archive成员文件被丢弃.
+    - 继续处理下一个输入文件 
+
+  - Linker扫描完成后, 检查U
+
+    - U为空集: 合并和relocateE中的object file, 输出executable
+    - U非空: ld输出错误, 链接失败
+
+  - 解析过程决定了输入文件的顺序会影响link结果
+
+    - archive文件如果早于其已用过的文件出现, 则引用将始终处于U(undefined)
+
+    - archive文件一般放在命令行的结尾
+
+    - 多个archive的成员函数相互独立, 则结尾的archive顺序随意
+
+    - 若不独立, 则需要编译启动时手动重排列
+
+      排列遵循向后定义原则: 前者外部引用的符号必须在后者定义
+
+    - 为了满足依赖需求, cmdline上可以输入重复的库
+
+      相互依赖型: 库x里引用了库y定义的符号, 反之亦真. foo.c 引用了二者
+
+      linux> gcc foo.c libx.a liby.a libx.a
+
+      (重复输入的只会是archive, obj扫描一次即可完成所有符号解析)
+
+      或者合并libx和liby
+
+### 7. Relcation
+
