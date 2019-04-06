@@ -348,3 +348,22 @@ typedef struct {
 
 ### 7. Relcation
 
+符号解析完成后, 每个符号的引用和其定义 (symtab中的entry)关联了起来.
+
+此时可由symtab中得知每个symbal(全局变量和函数)的size (bytes), 开始重定位. 合并输入模块, 并为每个符号分配运行时地址
+
+- 重定位section和符号定义
+
+  - linker将所有同类型的section merge成为一个aggregate section. 作为输出的executable的section; 
+
+  - linker将运行地址分配给新的aggregate sections, input modules, defined symbols. 
+  - 此时每条指令和全局变量都有唯一的运行内存地址
+
+- 重定位section中的符号引用
+
+  - 通过relocation entries这一data structure, Linker修改.text .data中对每个符号的引用, 指向正确的运行时地址
+
+### 7.1 Relocation Entries
+
+
+
