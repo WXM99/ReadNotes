@@ -148,7 +148,7 @@ update
   FROM (
   	select sID, sName, GPA, GPA*(sizeHS/1000.0) as scGPA
     from Student
-  	) new_Student
+  	) as new_Student
   WHERE abs(new_Student.scGPA-GPA) > 1.0;	
   ```
 
@@ -168,13 +168,15 @@ update
             where Student.sID = Apply.sID
             	and Apply.cName = College.cName
   	      )
-    ) as GPA
+    ) as MaxGPA
   FROM College;  
   ```
 
 - Sub-queries in SELECT must return **one value** (single column)
 
   because the the value is used to fill in just one row of the result.
+
+  select中的sub-query必须返回单值
 
 ### Join operator
 
@@ -252,3 +254,144 @@ update
 
   - 左右outer  join没有交换律 (Commutativity)
 
+### aggregation functions
+
+- 初始在Select字句, 对多个tuple的数据集合进行操作
+
+- basic aggregation functions
+
+  - minimum, maximum, sum, average, count
+
+  - count: 
+
+    select count(*) 返回单值 (from中满足where的tuple数量)
+
+    count(distinct) 返回无重复计数
+
+- 'group by' clause and 'having' clause
+
+  ```sql
+  select A1, A2, A3, ..., An
+  from R1, R2, ..., Rm
+  where /--condition--/
+  group by /--columns--/
+  having /--condition--/
+  ```
+
+  - group by (attr)
+
+    attr对tuple的投影
+
+  - group by (多个attrs)
+
+    attrs全组合后, 按照各个组合投影
+
+  - group by搭配aggregation function
+
+    在select中使用aggregation func(attr)来产出每个group群体特征, 作为投影后的attr
+
+  - 含有group by的query select中必须返回针对group的单值, 否则非单值attr返回group中随机值
+
+  - group by 中注意innerjoin后select count结果为0的情况
+
+- Having clause
+
+  - apply conditions to the results of aggregate functions after group by. And check conditions in the whole group. 对组的条件
+  - 'where'  对单个tuple的条件
+  - having 中的sub-query
+
+  ```sql
+  select major
+  from Student nature join Apply
+  group by major
+  having max(GPA) < (select avg(GPA) from Student)
+  ```
+
+### NULL value
+
+- NULL可以出现在除主键和特殊指定之外的任何attr上
+- 为NULL的attr不会被where condition比较except 'is null'
+- count(distinct attr) 不会计算为null的attr, 然而select distinct会输出null
+
+### Modification statement
+
+- inserting data
+
+  1. 输入完整行
+
+     ```sql
+     insert into /Relation/
+     values (attr1, attr2, attrn)
+     ```
+
+  2. 通过select语句插入select选中的同schema tuple set
+
+     ```sql
+     insert into /Relation/
+     --Select-statement--
+     
+     insert into Apply
+     (
+     	select sID, 'Carnegie Mellon', 'CS', null
+     	from Student
+     	where sID not in (select sID from Apply)
+     );
+     ```
+
+     
+
+- deleting data
+
+  ```sql
+  delete from /Relation/
+  where /Condition/
+  
+  delete from Student
+  where sID in 
+  	(
+    	select sID
+      from Apply
+      group by sID
+      having count(distinct major) > 2
+    );
+  ```
+
+  类似于select-statement, 结果由输出改为删除
+
+  condition中可以嵌套sub-query, aggregation functions over other tables
+
+  delete中的sub-query在一些DB中不允许是被操作的数据库
+
+- updating existing data
+
+  ```sql
+  update /Relation/
+  set attr1 = expression1 ...
+  where /condition/
+  
+  select * from Apply
+  where major = 'EE'
+  	and sID in 
+  	(
+    	select sID from Student
+      where GPA >= all
+      (
+      	select GPA
+        from Student
+        where sID in
+        (
+        	select sID 
+          from Apply
+          where major = 'EE'
+        )
+      )
+    );
+  ```
+
+  condition中可以嵌套sub-query, aggregation functions over other tables
+
+  expression中可以query当前relation或者其他relation
+
+  set 等号的右值可以是返回单值的sub-query
+
+  
