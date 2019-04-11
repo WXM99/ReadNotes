@@ -346,7 +346,7 @@ typedef struct {
 
       或者合并libx和liby
 
-### 7. Relcation
+## 7. Relcation
 
 符号解析完成后, 每个符号的引用和其定义 (symtab中的entry)关联了起来.
 
@@ -362,8 +362,200 @@ typedef struct {
 - 重定位section中的符号引用
 
   - 通过relocation entries这一data structure, Linker修改.text .data中对每个符号的引用, 指向正确的运行时地址
+  - 获取正确的引用地址依赖于relocatable object file中的数据结构, 即relocation entry
 
 ### 7.1 Relocation Entries
+
+- assembler生成的二进制代码没有数据和代码的在内存的位置信息, 所以也无法得知引用的外部函数和全局变量的位置信息
+
+- assembler遇到位置未知的引用时, 会生成relocation entry
+
+- relocation entry的作用是告知linker在进行合并object时应该如何修改引用
+
+- relocation entries **for CODE**被放置在obj的,rel.text section
+
+  relocation entries **for DATA**被放置在.rel.data中
+
+- relocation entry 结构定义
+
+  ```c
+  typedef struct {
+    long offset;    //offset of the reference to relocate
+    long type: 32,  //relocation type
+    		 symbol: 32;//symbol table index 
+    long addend;//constant part of relocation expression 
+  } Elf64_Rela;
+  ```
+
+  - offset: 需要被修改的引用所在的section offset
+  - type: 修改引用的类型
+  - symbol: 被修改的引用应该指向的符号在symbol table中的index
+  - addend: 有符号, 某些类型的relocation使用add-end对被修改的引用值做偏移调整
+
+- ELF定义的relocation type共有32种, 其中以下两种最基本
+
+  - R_X86_64_PC32:
+
+    > relocation 引用目标:  32位的PC relative address
+    >
+    > PC relative定义可见chp3 6.3
+    >
+    > 注意执行某条指令时, PC当前指令的指向下一条指令 (fetch goes first)
+
+  - R_X86_64_32
+
+    > relocation 引用目标:  32位的absolute address
+    >
+    > 绝对寻址时, Linker使得CPU直接使用指令中的值作为有效地址, 不进行修改
+
+  两种类型支持x86-64的small code model. 即假设exe obj的.text 和.data一共小于2GB, 所以通过32位寻址. GCC默认使用small code model.
+
+  编译更大的文件需要修改relocation type和代码模型, 通过以下参数修改
+
+  ```bash
+  -mcmodel=medium
+  -mcmodel=large
+  ```
+
+  
+
+### 7.2 Relocating Symbol Reference
+
+> 重定位算法
+
+````pseudocode
+foreach section s{
+  foreach relocation entry r{
+    /* ptr to reference to be relocated */
+    refptr = s + r.offset; 
+    /* relocate a PC-relative reference */
+    if(r.type == R_X86_64_PC32){
+    	/* ref's run-time address */
+      refaddr = ADDR(s) + r.offset /*real pos*/  
+      *refptr = (unsigned) (ADDR(r.symbol) + r.addend - refaddr) /*holder pos*/
+     }
+      
+    /* relocate an absolute reference */
+    if(r.type == R_X86_64_32) {
+       *refptr = (unsigned) (ADDR(r.symbol) + r.addend)
+    } 
+  }
+}
+````
+
+- 在每个section和section相关的relocation entry上迭代执行
+- section s 假定为一个字节数组
+- relocation entry r 假定为Elf64_Rela结构
+- Linker为各个节和symbol选定的地址通过ADDR()得到
+- ```refptr```是指向需要被重定位的引用的指针
+- Compiler生成的汇编代码首先会标记全局符号的引用
+- Assembler会根据每个引用产生relocation entry
+- objdump会把relocation entry所见到一行, 紧跟在对应引用后
+
+> example
+
+```c
+/* orginal main.c */
+int sum(int *a, int n);
+int array[2] = {1, 2};
+int main(){
+  int val = sum(array, 2);
+  return val;
+}
+
+/* orginal sum.c */
+int sum(int *a, int n){
+  int i, s = 0;
+  for (i = 0; i < n; i++) {
+    s += a[i]
+  }
+  return s;
+}
+```
+
+#### 1. relocation PC-relative reference
+
+调用sum函数
+
+```assembly
+...
+e: e8 00 00 00 00   callq 13<main+0x13> # sum()
+          f: R_X86_64_PC32      # relocation entry
+...          
+```
+
+call指令开始于section偏移0xe的位置, callq的操作码0xe8占1字节, 所以relocation entry的地址为0xf, Compiler在此提供一个占位符
+
+assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如下
+
+- r.offset = 0xf   // 引用相对位置
+- r.symbol = 'sum' // 引用符号 实为symbol table index
+- r.type = R_X86_64_PC32 // 重定位类型
+- r.addend = -4 
+
+> relocation entry r 要传递给linker的信息是
+>
+> 需要对位于相对开始**位置0xF**处的引用重定位
+
+> Linker执行时, 可以通过**已完成的重定位section和符号定义**确定出ADDR(s)
+>
+> 对于本例: 
+>
+> ADDR(s) = ADDR(.text) = 0x4004d0               // sum引用出现的节位置 
+>
+> ADDR(r.symbol) = ADDR(sum) = 0x4004e8 // sum定义的位置
+>
+> 由重定位算法可知
+>
+> ``refaddr = ADDR(s) + r.offset ``
+>
+> ``= 0x4004d0+ 0xf = 0x4004df``
+>
+> 即为sum被引用的内存位置
+>
+> ``*refptr = (unsigned) (ADDR(r.symbol) + r.addend - refaddr )``
+>
+> ``=(unsigned) (0x4004e8 + (-4) - 0x4004df) = 0x5``
+>
+> 即为PC和sum之间的相对位置
+>
+> (或者理解为ADDR(r.symbol) - tmp_PC = ADDR(r.symbol) - (refaddr + leng(ref) )  )
+>
+> linker修改后可得
+>
+> ```assembly
+> 4004de: e8 05 00 00 00  callq 4004e8  sum()
+> ```
+
+
+
+#### 2. Relocating Absolute Reference
+
+读取全局变量array
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
