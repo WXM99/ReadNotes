@@ -495,7 +495,7 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
 > relocation entry r 要传递给linker的信息是
 >
-> 需要对位于相对开始**位置0xF**处的引用重定位
+> 需要对位于相对开始**位置0xF**处的PC相对引用重定位
 
 > Linker执行时, 可以通过**已完成的重定位section和符号定义**确定出ADDR(s)
 >
@@ -532,6 +532,28 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 #### 2. Relocating Absolute Reference
 
 读取全局变量array
+
+```assembly
+9: bf 00 00 00 00  mov $0x0, %edi # &array   
+		  a: R_X86_64_32 array
+```
+
+对于array的引用, 其relocation entry r包括
+
+- r.offset = 9 + 1 = 0xa // bf操作符为mov
+- r.symbol = array
+- r.type = R_X86_64_32
+- r.addend = 0
+
+> Linker 从偏移量为0xa的位置开始绝对引用的重定位
+>
+> 并将这个位置直接替换为ADDR(array) + 0
+
+```assembly
+4004d9: bf 18 10 60 00 mov $0x601018, %edi
+```
+
+
 
 
 
