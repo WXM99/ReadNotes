@@ -200,11 +200,11 @@ update
 
     不满足theta的row曾广attrs设置为null
 
-  JOIN都是可替代的
-
-  ![image-20190408231852107](./Chp3 SQL.assets/image-20190408231852107.png)
+  JOIN都是可替代的 (利用comma作为cross product)
 
 - Differentiate Condition in On or WHERE
+
+  ![image-20190408231852107](./Chp3 SQL.assets/image-20190408231852107.png)
 
   - "SQL processor should execute them all in the most efficient way"
 
