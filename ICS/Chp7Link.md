@@ -553,13 +553,185 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 4004d9: bf 18 10 60 00 mov $0x601018, %edi
 ```
 
+## 8. Executable Object File
 
+- Generation of a program
 
+  1. [VIM] - ASCII file > prog.c  #source code
+  2. [cpp] - ACSII file > prog.i   #preprocesser
+  3. [cc1] - ACSII file > prog.s   #compiler
+  4. [as] - BIN OBJ file > prog.o #asembler
+  5. [ld] - BIN EXE file > prog #linker   
 
+- ELF executable object file
 
+  ![image-20190415204347006](Chp7Link.assets/image-20190415204347006.png)
 
+  - ElF head: 文件总体format和 entry point (运行时的首指令地址)
+  - .text 同relocatable, 已经被重定位到运行时内存
+  - .rodata 同relocatable, 已经被重定位到运行时内存
+  - .data 同relocatable,  已经被重定位到运行时内存
+  - .init: 定义了一个小函数```_ini```, 程序初始化时调用
+  - executable是fully-linked, 不需要rel section
 
+- Loading into Memory
 
+  - continuous Chunk <—reflect into—> continuous Memory
+
+  - 映射关系在program header table中描述
+
+    ![image-20190415205701175](Chp7Link.assets/image-20190415205701175.png)
+
+    - 内存段: ×2 (data-segment)
+
+    - Read-only code: 具有 读/执行 访问权限
+
+    - Read/write data: 具有 读/写 访问权限
+
+    - vaddr 0x0…400000: 开始于虚拟内存0x400000处
+
+    - align: 对齐要求
+
+    - memz: 内存中的段大小
+
+    - flags: 运行时访问权限
+
+    - chuck1:
+
+      filesz 0x0…69c: 初始化文件头0x69c字节
+
+      包含ELF head, program head table自身, .init, .text, .rodata
+
+    - chuck2: 
+
+      off = 0xdf8: 从obj file第df8处开始
+
+      filesz = 228: 0x228 byte
+
+      包括.data中的初始化数据
+
+      memz = 0x230 => 有8byte在.bss中初始化为0
+
+  - Linker为section分配运行时的起始内存地址vaddr
+
+    - 对其要求: vaddr % align = off  % align
+
+      vaddr % align = 0x600df8 % 0x200000 = 0xdf8
+
+      off % align = 0xdf8 % 0x200000 = 0xdf8
+
+    - 对齐要求让loading更有效率, 因为虚存的组织方式
+
+## 9. Loading Executable Object File
+
+- Load
+
+  ```shell
+  linux> ./prog
+  ```
+
+  1. 调用存储器中的loader(OS代码)来运行
+  2. Linux程序通过调用execve函数来调用Loader
+  3. Loader将文件的代码和数据从Disk复制到Memory中
+  4. 跳转(jump)到程序的第一条指令入口执行程序
+
+  整个复制运行过程叫做Load
+
+- 内存映像
+
+  ![image-20190415220552329](Chp7Link.assets/image-20190415220552329.png)
+
+  - 代码段起始位置: 0x400000 (Linux X86-64)
+  - 向上紧接着数据段(填充ELF中的section)
+  - 向上是runtime-heap (malloc占用空间, 向上生长)
+  - 向上是为共享module保留的区域
+  - 用户栈从2**48-1的地址向下生长
+  - 系统内核(kernel)在2**48以上 (OS驻留内存)
+  - 由于.data的对其要求, .text和.data之间有间隙
+  - 分配stack, shared lib和heap时, Linker会使用ASLR (地址空间布局随机化)来随机程序运行时的地址 (Address Space Layout Randomization)
+
+- Loader的工作方式
+
+  - 创建内存映像
+
+  - 在program head table指引下将objfile的chunk复制到内存的代码段和数据段
+
+  - 跳转到程序入口(_start函数地址, 在ctrl.o中定义)
+
+  - _start函数调用系统启动函数__libc_start_main(定义在libc.so中, 初始化运行环境, 调用用户层main函数, 处理main的返回值并与kernel交接控制权)
+
+    > Linux系统的每个程序都具有自己的运行context和虚存空间
+    >
+    > shell运行一个程序时, shell会作为父进程生成一个子进程, 作为父进程的复制
+    >
+    > 子进程通过exeve系统函数启用loader
+    >
+    > loader删除子进程现有的虚存段, 创建新的代码, 数据, heap and stack section
+    >
+    > 新的heap和stack被初始化为0
+    >
+    > 通过将虚存中大小为页的空间映射到可执行文件中相同大小的片来初始化新的代码和数据段
+    >
+    > loader跳转到_start地址, 最终调用应用程序的main函数
+    >
+    > 除了header info, loader没有做过磁盘到内存的数据复制
+    >
+    > 当CPU寻址到一个被映射的虚拟页时才会进行复制
+    >
+    > 操作系统的调度机制自动将页面从磁盘传送到内存
+
+## 10. Dynamic Linking with Shared Libraries
+
+> - 静态库的维护和更新问题 —— 重新完成程序链接
+> - 重复的代码片段重复复制进内存(不同成程序调用)
+
+- Shared Libraries
+
+  - 一个Object Module
+  - 运行或加载时, 可以加载到任意的内存地址
+  - 可以和任意一个内存中的程序链接起来——动态链接 (by dynamic linker)
+  - shared library也称作shared object. Linux中以.so文件格式表示
+  - MS的操作系统windows大量地使用了shared library, 并称之为DLL(Dynamic link libraries)
+
+- 共享库的共享方式
+
+  - 文件系统中, 一个lib只能对应一个.so文件, 所有引用库的exe可以共享so内的数据和代码, 无需复制到自身内
+
+  - 内存中一个lib的.text section的一个副本可以被不同的进程共享
+
+  - 编译生成共享库文件
+
+    ```bash
+    linux> gcc -shared -fpic -o libvector.so addvec.c multvec.c
+    ```
+
+    - ```-fpic```选项指示编译器生成PIC (position independent code)
+    - ``-shared``选项指示编译器创建一个shared object file
+
+  - 引用共享库文件
+
+    ![image-20190416204425697](Chp7Link.assets/image-20190416204425697.png)
+
+    ```bash
+    linux> gcc -o prog2 main2.c ./libvertor.so
+    ```
+
+    - 创建EXE prog2
+    - prog2在运行时可以和libvector动态链接
+      1. ld在静态执行一些链接
+      2. 程序加载时, 动态完成链接过程
+      3. ld复制了一些重定位和符号表的信息, 在运行时解析对库中代码和数据的引用
+      4. exe中没有任何库中的代码或者数据
+      5. Loader加载prog2时, 会发现prog2包含一个.interp section, 其中包含了动态连接器的路径名
+      6. 动态链接器本身就是一个shared object (ld-linux.so)
+      7. 有shared lib的情况下Loader不会把控制交给应用程序, 而是加载和运行这个动态链接器
+      8. 动态链接器完成链接任务通过
+         - 重定位libc.so的文本到某个内存段
+         - 重定位libcvector.so的文本到另一个内存段
+         - 重定位prog2中所有对libc.so和libcvector.so定义的符号的引用
+      9. 动态链接器将控制递交给应用程序, 从此, 共享库的位置固定并且在执行中不会改变
+
+## 11. Loading and Linking Shared Libraries from Applications
 
 
 
