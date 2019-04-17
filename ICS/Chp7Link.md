@@ -222,9 +222,10 @@ typedef struct {
 
   Linker在所有模块中都找不到的话则报错
 
-  ### 6.1 Duplicate Symbol Names
+### 6.1 Duplicate Symbol Names
 
 - 强弱符号 (GLOBAL 不考虑static)
+
   - 强符号: 函数和已初始化(包括初始化为0)的全局变量 (.text .data UNDEF .bss) 
   - 弱符号: 未初始化的全局变量 (COMMON)
 
@@ -717,7 +718,7 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
     ```
 
     - 创建EXE prog2
-    - prog2在运行时可以和libvector动态链接
+    - prog2在加载时(运行前)可以和libvector动态链接
       1. ld在静态执行一些链接
       2. 程序加载时, 动态完成链接过程
       3. ld复制了一些重定位和符号表的信息, 在运行时解析对库中代码和数据的引用
@@ -733,11 +734,136 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
 ## 11. Loading and Linking Shared Libraries from Applications
 
+> 应用程序运行时要求动态链接器加载和链接某个共享库, 无需在编译时将库链接
+
+- e.g. 
+
+  - 分发软件: 下载新版本替代现有版本得出共享库后, 下一次运行程序会自动链接到新的共享库
+
+  - web服务: web服务器生成动态内容
+
+    将每个生成动态内容的函数打包到共享库中, 当web请求到来时, 服务器动态加载和链接与请求相关的函数探后调用; 而不是fork之后execve,再在子进程中运行函数. 动态链接使得函数一直缓存在内存中处理以后的请求
+
+    无需停止运行中的服务器就可以更新已存在的函数或者添加新的函数
+
+- Linux对运行时程序链接或加载共享库的接口
+
+  ---
+
+  ```c
+  #include <dlfcn.h>
+  void *dlopen(const char *filename, int flag);
+  ```
+
+  - 加载和链接共享库filename
+  - 用RTLD_GLOBAL选项打的开库文件(全局库), 解析filename中的外部符号
+  - 如果exe是带有-rdynamic选项编译的, 则其中的全局符号可用作符号解析
+  - flag参数
+    - RTLD_NOW: 告知ld立即解析对外部符号的引用
+    - RTLD_LAZY: 告知ld推迟符号解析直到执行到filename中的代码
+    - 可以和RTLD_GLOBAl取或, 标记为全局动态库
+  - 成功返回指向句柄(管理内存动态库)的指针, 出错返回null
+
+  ---
+
+  ```c
+  #include <dlfcn.h>
+  void *dlsym(void *handle, char *symbol);
+  ```
+
+  - 输入一个之前打开共享库的句柄和symbol名字, 尝试解析改symbol
+  - 符号存在于handle, 则返回符号地址, 否则null
+
+  ---
+
+  ```c
+  #include <dlfcn.h>
+  int dlclose(void *handle);
+  ```
+
+  - 如果没有其他共享库引用, 则卸载该共享库
+
+  ---
+
+  ```c
+  #include <dlfcn.h>
+  const char *dlerror(void);
+  ```
+
+  - 返回字符串, 描述调用dl函数时最近发生的错误信息
+
+  ---
+
+  - 调用实例
+
+  ```bash
+  linux> gcc -rdynamic -o prog_name dll.c -ldl
+  ```
+
+  
+
+  ```c
+  /* $begin dll */
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <dlfcn.h>
+  
+  int x[2] = {1, 2};
+  int y[2] = {3, 4};
+  int z[2];
+  
+  int main() 
+  {
+      void *handle;
+      void (*addvec)(int *, int *, int *, int);
+      char *error; 
+  
+      /* Dynamically load the shared library that contains addvec() */
+      handle = dlopen("./libvector.so", RTLD_LAZY);
+      if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(1);
+      }
+  
+      /* Get a pointer to the addvec() function we just loaded */
+      addvec = dlsym(handle, "addvec");
+      if ((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+        exit(1);
+      }
+  
+      /* Now we can call addvec() just like any other function */
+      addvec(x, y, z, 2);
+      printf("z = [%d %d]\n", z[0], z[1]);
+  
+      /* Unload the shared library */
+      if (dlclose(handle) < 0) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(1);
+      }
+      return 0;
+  }
+  /* $end dll */
+  ```
+
+## 12. Position-Independent Code (PIC)
+
+> - shared lib 的主要目的是允许多个正在运行的进程共享内存中的一份相同库代码
+> - 分享机制:
+>   1. 给每份库代码事先预留专用的地址空间片, 要求加载器总是在该地址上加载库代码
+>      - 地址空间利用效率低, 预留空闲的空间
+>      - 难以管理内存空间, 避免片的重叠
+>      - 反复释放, 分配内存片给库代码, 碎片化
+>   2. PIC
+>      - 共享代码可以被加载到任意内存位置但无需linker修改程序代码
+>      - 无限多个进程共享单一的代码段副本
+> - 同一个objectfile内部的符号引用不需要PIC, 其本身用PC-relative进行寻址, 有静态linker重定位
+
+### 12.1 PIC Data References
 
 
 
-
-
+### 12.2 PIC Function Calls
 
 
 
