@@ -113,7 +113,7 @@ Binary relocatable object file
 
 ## 4. Relocatable Object File
 
-![image-20190402204913456](/Users/Miao/Library/Mobile Documents/com~apple~CloudDocs/GitHub/ReadNotes/ICS/Chp 7 Link.assets/image-20190402204913456.png)
+<img src='./Chp 7 Link.assets/image-20190402204913456.png' style='width: 30%; margin: 0px auto'>
 
 - ELF header: 
 
@@ -566,7 +566,7 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
 - ELF executable object file
 
-  ![image-20190415204347006](Chp7Link.assets/image-20190415204347006.png)
+  <img src='Chp7Link.assets/image-20190415204347006.png' style="width: 50%;">
 
   - ElF head: 文件总体format和 entry point (运行时的首指令地址)
   - .text 同relocatable, 已经被重定位到运行时内存
@@ -640,7 +640,7 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
 - 内存映像
 
-  ![image-20190415220552329](Chp7Link.assets/image-20190415220552329.png)
+  <img src='Chp7Link.assets/image-20190415220552329.png' style="width: 50%;">
 
   - 代码段起始位置: 0x400000 (Linux X86-64)
   - 向上紧接着数据段(填充ELF中的section)
@@ -711,7 +711,7 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
   - 引用共享库文件
 
-    ![image-20190416204425697](Chp7Link.assets/image-20190416204425697.png)
+    <img src='Chp7Link.assets/image-20190416204425697.png' style="width: 50%;">
 
     ```bash
     linux> gcc -o prog2 main2.c ./libvertor.so
@@ -861,15 +861,132 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 
 ### 12.1 PIC Data References
 
+- 内存中的任何object module (包括shared module) 代码段和数据段的距离一定
+- 运行时代码段中任何指令和数据之间的距离都是一个常量, 与其的运行时内存绝对位置无关 —— PC relative 的理论基础
+- PIC在利用了PC-relative的这一特性, 在数据段的开始出创建了一张全局偏移量表(GOT)
 
+#### Global Offset Table
+
+- 每个被object module引用过的全局变量或者函数, 在GOT中都有一个8-byte entry
+
+- Compiler为每个entry生成一个重定位记录
+
+- Loading时, 动态链接器重定位GOT中的每一个entry, 使其包含正确的绝对地址
+
+- 每个引用了全局目标的obj都有自己的GOT
+
+  <img src='Chp7Link.assets/image-20190417221501674.png' style="width: 70%">
+
+- 使用了GOT (-fpic) 之后, 全局符号的引用变为对GOT的引用后再解引用
+- 对GOT的引用利用了PC-relative(GOT位于代码段开头)
 
 ### 12.2 PIC Function Calls
 
+- 应用程序调用了共享库代码时, 编译器无法预测库函数运行时地址 (库函数会被在加载到任意位置)
 
+- Compiler为其生成一条重定位记录
 
+- 动态连接器在加载程序时在解析重定位记录
 
+- GNU的lazy-binding技术: 将地址绑定推迟到第一次调用过程时
 
+  - 优点: 避免大型库函数内的所有项目都在被加载时被ld-linux.so重定位
+  - 缺点: 第一次调用开销大, 但之后的调用只需要一条指令和一次内存引用
 
+- lazy-binding的实现
+
+  - 两个数据结构
+
+    1. GOT (GLOBAL OFFSET TABLE)
+    2. PLT (PROCEDURE LINKAGE TABLE)
+
+  - 每个调用了共享库的objfile都有自己的GOT和PLT
+
+    - GOT位于数据段
+    - PLT位于代码段
+
+  - GOT和PLT协作, 在运行时解析共享库内函数地址
+
+    - PLT: PLT是一个数组, 每个entry是一个16byte代码;
+
+      - 特殊的PLT[0]将跳转到ld-linux.so中
+      - 每个被应用程序调用的库函数都有自己的PLT entry; 每个entry负责调用一个具体的函数
+      - PLT[1]调用系统启动函数 (__libc_start_main), 初始化执行环境, 调用main函数并处理器返回值
+      - PLT[2]开始调用用户代码调用的函数
+
+    - GOT: GOT是一个数组, 每个entry是8-byte的字节地址:
+
+      - 与PLT联合使用, GOT[0]和GOT[1]包含ld-linux.so在解析函数地址时会使用的信息
+      - GOT[2]是ld-linux.so的程序入口
+      - 其他的条目各对应一个被调用的函数
+      - 当函数地址被解析时, 每个entry对应一个PLT entry
+      - 初始时, 每个GOT都指向相同函数对应的PLT的下一条指令
+
+    - 实例
+
+      ![image-20190417233333967](Chp7Link.assets/image-20190417233333967.png)
+
+      - 第一次调用addvec
+
+        1. 程序调用直接进入PLT[2] (addvec的entry)
+
+           ```assembly
+           ## prog ##
+           callq 0x4005c0 # call addvec()
+           ## PLT ##
+           4005c0: jmpq *GOT[4]
+           ```
+
+        2. 通过GOT[4]间接跳转到PLT[2]的下一条指令
+
+           ```assembly
+           ## GOT ##
+           GOT[4]: 0x4005c6
+           ```
+
+           ```assembly
+           ## PLT ##
+           4005c6: pushq $0x01 # funcID
+           4005cb: jmpq 4005a0 # to PLT[0]
+           ```
+
+        3. 把addvec的ID (0x01)压栈, 跳转到PLT[0]
+
+           ```assembly
+           ## PLT ##
+           4005a0: pushq *GOT[1] # PçLT[0]
+           4005a6: jmpq *GOT[2]
+           ```
+
+        4. PLT[0]把GOT[1]压栈, 作为ld-linux.so的参数, 跳转到GOT[2]间接跳转到ld-linux.so
+
+           ```assembly
+           ## GOT ##
+           GOT[0]: addr of .dynamic
+           GOT[1]: addr of reloac entry
+           GOT[2]: addr of dynamic linker
+           ```
+
+        5. ld-linux.so开始执行, 通过当前stack上的ID和GOT[1]作为参数来解析函数运行时位置, 并用这个位置重写GOT[4], 完成GOT填写, 并返回PC到addvec
+
+      - 后续调用addvec
+
+        1. 跳转到同样的PLT[2]
+        2. PLT[2]跳转到GOT[4] (对应的entry)
+        3. GOT[4]直接转移PC到addvec的运行地址
+
+## 14. Tools for Manipulating Object File
+
+> Include GNU binutils
+>
+> - AR: 创建静态库, 操作库中的成员
+> - STRINGS: 列出.o文件中.data(RO) section内所有可打印的string
+> - STRIP: 从.o文件中删除symbol table (LInker需要)
+> - NM: 列出.o文件中symbol table的所有定义的符号名
+> - SIZE: 列出.o文件中sections的名称和大小
+> - READELF: 显示.o文件的完整结构, 包括ELF header中的编码信息和SIZE以及NM的功能
+> - OBJDUMP: 二进制解析解析工具基础, 可以显示一个.o文件的所有信息; 包括将,text中的二进制指令反汇编
+> - LDD: 列出可执行文运行时需要的所有共享库
 
 
 
