@@ -143,9 +143,140 @@
 #### III. faults
 
 - 故障又错误引起, 可以被handler处理和修正
+
 - 故障发生时, CPU将控制移交给handler
+
   - handler如果可以修正错误, 则返回到引起故障的指令重新执行
   - 否则让handler返回到内核的abort例程(routine), 终止引起故障的应用程序
+
+  ![; image-20190418225815894](Chp8Exceptions.assets/image-20190418225815894.png)
+
+- 实例: Page Fault 缺页异常
+
+  指令引用一个地址, 然而地址对应的物理页不在内存中, 需要从磁盘取出
+
+  handler从磁盘加载适当的页后返回给当前指令, 再次执行时对应物理页已经在内存中了, 指令即可正常运行
+
+#### IV. Abort
+
+不可恢复的指明错误导致的结果, 通常是硬件错误 (DRAM或者SRAM位被损坏是发生的奇偶错误)
+
+handler将控制返回给abort routine, 用户程序被终止
+
+![image-20190418232253567](Chp8Exceptions.assets/image-20190418232253567.png)
+
+### 1.3 Linux/x86-64系统中的异常
+
+> 一共具有256种异常类型
+>
+> 0~31 由Intel构架师定义的异常, 对所有x86-64系统一致
+>
+> 32~255 由linux定义的中断和自陷
+>
+> 例如:
+>  0号异常 — 除法错误 — fault
+> 13号异常 — 一般保故障 — fault
+> 14号异常 — 缺页 — fault
+> 18号异常 — 硬件宕机 — abort
+> 32~255 — 系统定义异常 — interrupt or trap 
+
+#### I. Linux/x86-64 Faults and Aborts
+
+- Divide error
+
+  除零错误, 除法溢出错误. 0号硬件异常. 
+
+  Unix没有回复措施, 直接终止应用; 
+
+  Linux Shell报错为 "Floating Exception"
+
+- General protection fault
+
+  不为人知的一般性保护故障. 通常由于程序引用了未定义的VM区域, 或者写入一个只读文本
+
+  Linux没有回复措施, 直接终止程序;
+
+  Linux Shell报告为 "Segment Fault"
+
+- Page fault
+
+  会重新执行导致异常的指令, handler会修该故障
+
+- Machine check
+
+  指令执行中检测到硬件发生fatal错误, handler不返回, 直接终止
+
+  fatal error指的是软件原理上无法修复的错误, 由物理结构变换引起的
+
+#### II. Linux/x86-64 System Call
+
+- Linux提供几百种系统调用提供给请求内核服务的应用程序使用
+
+- 包括读文件, 写文件, 创建新进程; 每个syscall都有唯一的编号, 与内核的跳转表偏移量对应 (并非是Exception Table)
+
+  | 编号 |  名称  |          描述          |
+  | :--: | :----: | :--------------------: |
+  |  0   |  read  |         读文件         |
+  |  1   | write  |         写文件         |
+  |  2   |  open  |        打开文件        |
+  |  3   | close  |        关闭文件        |
+  |  4   |  stat  |      获取文件信息      |
+  |  9   |  mmap  |    将内存映射到文件    |
+  |  12  |  brk   |       重置顶heap       |
+  |  32  |  dup2  |      复制文件描述      |
+  |  33  | pause  | 挂起进程直到signal到达 |
+  |  37  | alarm  |  调度闹钟signal的送达  |
+  |  39  | getpid |       获取进程ID       |
+  |  57  |  fork  |        创建进程        |
+  |  59  | execve |      执行一个进程      |
+  |  60  | _exit  |        终止进程        |
+  |  61  | wait4  |      等待进程终止      |
+  | 652  |  kill  |   ; 发送signal到进程   |
+
+- 实例: 利用syscall编写 hello world
+
+  ```c
+  int main(){
+    write(1, "hello, world\n", 13);
+    _exit(0);
+  }
+  ```
+
+  ```write```第一个参数指将要发送给stdout(屏幕文件), 第二个参数为要写的字节序列, 第三个参数为要写的字节数;
+
+  ```assembly
+  /* $begin hello64-s 1 */
+  .section .data
+  string:
+          .ascii "hello, world\n"
+  string_end:
+          .equ len, string_end - string
+  .section .text
+  .globl main
+  main:
+          # First, call write(1, "hello, world\n", 13)
+          movq $1, %rax        # write is system call 1        
+          movq $1, %rdi        # Arg1: stdout has descriptor 1 
+          movq $string, %rsi   # Arg2: hello world string
+          movq $len, %rdx      # Arg3: string length           
+          syscall              # Make the system call         
+  
+          # Next, call _exit(0)
+          movq $60, %rax       # _exit is system call 60     
+          movq $0, %rdi        # Arg1: exit status is 0      
+          syscall              # Make the system call        
+  /* $end hello64-s 1 */
+  ```
+
+  利用寄存器保存参数后, 直接调用指令syscall调用系统服务
+
+> 异常类型的区分会根据系而不同
+>
+> - ISA规范区分为 异步 => interrupt; 同步 => exception
+
+## 2. Processes
+
+
 
 ## 5. Signal
 
