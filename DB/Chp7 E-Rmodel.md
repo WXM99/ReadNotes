@@ -1,4 +1,6 @@
-# Chp7 E-R model
+# Chp7
+
+# E-R model
 
 ## UML Data modeling
 
@@ -101,3 +103,81 @@
    Composition: 一个类的实例从属于另一个类, 则这两个类是Composition; 从属类对被聚合类是1..1的
 
    Aggregation: 可以独立的从属关系, 从属类对聚合类是0..1的
+
+# UML to Relations
+
+## High-Level Database Design Model
+
+- User-friendly (graphical) specification language
+- Translated into model of DBMS
+
+## Unified Modeling language (UML)
+
+> (data modeling subset)
+
+### 5 Concepts
+
+- Classes; Associations; Association classes; Subclasses; Comp&Aggre
+
+### Designs can be translated to relations automatically
+
+- Into a provision where every "reguler" class with a pk
+
+1. UML Classes to Relations
+
+   每个Class转换为Relation; pk attribute作为主键
+
+   > e.g.
+   >
+   > Class Student:pk=sID -> Student(<u>sID</u>, sName, …)
+
+2. UML Association to Relations
+
+   * 转换为拥有双边keys的relation
+
+   > e.g.
+   >
+   > ![image-20190423220136331](Chp7 E-Rmodel.assets/image-20190423220136331.png)
+
+   * Association 的Key: Depends on multiplcity
+     * default: 双边的key聚集
+     * 0..1 (/1) & *: 拥有0..1(/1)关系对侧的Class的key作为Association的key
+
+   * Association 退化: Depends on multiplicity
+
+     * 1(/0..1) & *: 为\*一侧的Class添加外键为对侧
+
+       此时的key在依然是原pk
+
+3. UML Association Class to Relations
+
+   - 为Association的relation添加Attributes
+   - 被联系的两个实例之间至多有一个关系类
+   - 被联系的类必须是regular class (有pk), AssociationClass不必, 它被加入Association
+   - 退化规则和主键规则同Association
+   - Self-Association的转化: 相同规则
+
+4. Subclass
+
+   - 三种转换风格
+
+     1. 子类包含基类的key和自身的specialized attrs
+
+        子类的key依然是基类key
+
+     2. 子类包含基类所有attrs
+
+        子类的key依然是基类key, 子类包含全部信息,   基类实例只在于基类, 不可以是子类
+
+        适用于Disjointed complete subclasses (全覆盖的不想交子类)
+
+     3. 创建mega relation包含所有基类attrs和子类attrs
+
+        key是原基类的key
+
+        适用于 Heavily Overlapping Subclasses (相交很多的子类)
+
+5. Aggregation and Composition
+
+   mega类正常转换, 子类包含mega key (mega类1..1的Association退化规则), 子类也是irregular class, 独立无key
+

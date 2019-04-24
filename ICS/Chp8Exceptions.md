@@ -276,6 +276,29 @@ handler将控制返回给abort routine, 用户程序被终止
 
 ## 2. Processes
 
+> Exception是Process概念的基础
+>
+> 进程包装了CPU和内存, 造成Application独占CPU和内存的假象
+
+- 定义: 一个执行中程序的实例
+
+  每个进程都执行在其context中, context由程序运行状态决定:
+
+  - Data & Code in memory
+  - universal Regs
+  - PC
+  - env. vars
+  - file meta data & descriptor
+
+- 运行: shell上输入exeObjFileName, shell会创建新进程并在其context中执行; Application也可以fork新进程并执行
+
+- 抽象:
+
+  - 独立逻辑控制流, 独占CPU的假象
+  - 独立地址空间, 独占内存的假象
+
+### 2.1 Logic Control Flow
+
 
 
 ## 5. Signal
