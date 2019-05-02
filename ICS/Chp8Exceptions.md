@@ -299,7 +299,158 @@ handler将控制返回给abort routine, 用户程序被终止
 
 ### 2.1 Logic Control Flow
 
+- 某个进程内部的PC序列
+- CPU交错执行多个进程. 每个进程执行其逻辑流的一部分, 随后被preempted, 然后轮给其他进程
+- 在某个程序的Context中是在独占处理器, 但是会发生周期性的停顿, 内存和寄存器没有改变
 
+### 2.2 Concurrent Flows
+
+- 执行时间相互重叠的逻辑流
+- 并发伴随着多个进程轮流运行—多任务(multitasking) 或者时间分片 (time slicing)
+
+### 2.3 Private Address Space
+
+- 进程为每个应用程序提供私有的地址空间
+
+- 这个空间里的内存字节不可以被其他应用程序读写
+
+- 私用地址空间有通用的地址结构
+  ![image-20190428171107205](Chp8Exceptions.assets/image-20190428171107205.png)
+
+### 2.4 User and Kernel Modes
+
+- 限制应用可以执行的指令以及可以访问的地址空间范围
+- CPU控制寄存器的mode bit用来描述当前进程的模式. 
+- 内核模式可以执行ISA中的任何指令和访问所有的内存位置
+- 用户模式不能执行特权指令, 不允许直接引用内存中内核区域的代码和数据
+- 应用程序运行时都在用户模式, 转变为内核模式的方法为 Interrupt, fault, syscall这样的Exception. 内核模式可以自动返回用户模式
+- Linux提供/proc的文件系统, 允许用户模式的进程访问核心数据结构
+
+### 2.5 Context Switch
+
+- 操作系统实现的高层次异常控制流来实现多任务
+- 每个进程的context包括:
+  - 通用目的寄存器
+  - 浮点寄存器
+  - PC
+  - 用户栈
+  - 状态寄存器
+  - 内核栈
+  - 内核数据
+- 进程执行的某些时刻, 内核可以抢占进程, 并重新开始一个之抢占的进程 —调度
+- context switch包括
+  - 保存当前进程的context
+  - 恢复被调度进程的context
+  - 将控制传递给被调度的进程
+- 长时间等待的简称会被抢占后调度
+- syscall sleep是显式地让进程休眠, 交还给内核
+- 定时器中断 interrupt (1ms-10ms)也可以切换进程
+
+![image-20190428174942990](Chp8Exceptions.assets/image-20190428174942990.png)
+
+## 3. System Call Error Handing
+
+- 系统函数错误返回-1, 并设置errno来表示错误类型
+- syscall caller应该检查errno
+- 包装syscall来输出错误信息并exit
+
+## 4. Process Control
+
+### 4.1 Obtain Process IDs
+
+![image-20190428182408808](Chp8Exceptions.assets/image-20190428182408808.png)
+
+- 获取调用函数的进程/父进程的PID
+- pid_t 在Linux中的定义是int
+
+### 4.2 Creating and Terminating Processes
+
+- 进程的状态:
+
+1. Running: CPU执行或者等待被调度	
+
+2. Stopped: suspended, 不会被调度
+
+   收到SIGSTOP等信号, 收到SIGCONT信号会继续运行
+
+3. Terminated: 永远停止了. 收到终止信号, 执行完成或者内部调用exit函数
+
+   exit函数以参数为退出状态类来终止进程
+
+- fork来创建子进程
+
+  ![image-20190428183246887](Chp8Exceptions.assets/image-20190428183246887.png)
+
+  子进程返回0, 父进程返回子进程ID, 出错返回-1
+
+  - 父子进程几乎相同, 子进程得到context的深拷贝和文件的浅拷贝副本
+  - fork调用一次, 返回两次
+  - 父子进程并发, 执行顺序由内核调度
+  - 相同但是独立的地址空间
+  - 共享文件
+
+### 4.3 Reaping Child Process
+
+- 内核不会清除终止进程, 进程会被保持在终止状态直到父进程回收
+
+- 回收时内核会把子进程的退出状态给父进程, 抛弃终止进程
+
+- 终止但是没有回收的进程是僵死进程
+
+- ![image-20190428185647651](Chp8Exceptions.assets/image-20190428185647651.png)
+
+  - 父进程调用, 成功返回子进程pid/0. 错误返回-1
+  - 默认options=0, 执行时挂起caller直到有一个等待的子进程终止
+    - 子进程提前终止则立即返回
+  - 等待集合: 参数1 pid决定
+    - pid>0: 等待pid指向的单一进程
+    - pid=-1: 父进程的 所有子进程
+  - 默认行为:
+    - p744/517
+  - 回收子进程的状态
+    - p745
+  - 错误条件, 返回-1
+    -  没有子进程 (errno = ECHILD.)
+    - waitpid被sig中断 (errno = EINTR)
+
+- wait
+
+  ![image-20190428192710380](Chp8Exceptions.assets/image-20190428192710380.png)
+
+   = waitpid(-1, *statusp, 0)
+
+- waitpid samples
+
+### 4.4 Putting Process to Sleep
+
+- sleep让函数挂起参数秒后恢复
+  - - 正常返回0
+    - 被SIG中断则返回省下的时间
+  - pause直接挂起等待信号, 总返回-1
+
+### 4.5 Loading and Running Programs
+
+![image-20190428195612350](Chp8Exceptions.assets/image-20190428195612350.png)
+
+- (文件名, 文件参数列表, 环境变量列表)
+
+- 参数列表和环境变量列表
+
+  ![image-20190428200320175](Chp8Exceptions.assets/image-20190428200320175.png)
+
+  - 都已NULL结尾
+  - 环境变量是指向"name=value"的指针列表
+  - execve之后的用户栈
+
+  ![image-20190428200735588](Chp8Exceptions.assets/image-20190428200735588.png)
+
+- 对envp的操作函数
+
+  ![image-20190428201216959](Chp8Exceptions.assets/image-20190428201216959.png)
+
+### 4.6 Using ```frok``` and ```execve``` to Run Programs
+
+> lab9
 
 ## 5. Signal
 
@@ -383,3 +534,154 @@ handler将控制返回给abort routine, 用户程序被终止
   4. 进程可以选择性的block某种signal, 当某种signal被block后, 他仍可以被发送, 但不会被接收, 除非取消block
 
      一个pending signal至多只会被接收一次. Kernel为每个进程在pending bits vector中维护pending signal的集合, 在blocked bits vector中维护block signal集合. k类信号对应于vector的第k位
+
+### 5.2 Sending Signals
+
+#### 1. Process Group
+
+- 每个进程食欲唯一的进程组, 进程组有唯一标识int ID > 0;
+
+  ![image-20190428210527204](Chp8Exceptions.assets/image-20190428210527204.png)
+
+  返回caller所属的进程组ID
+
+- 默认子进程和父进程属于同一进程组
+
+  ![image-20190428210624074](Chp8Exceptions.assets/image-20190428210624074.png)
+
+  修改进程所属的进程组: 把进程pid的进出入哪个组设置为pgid. pid = 0则使用caller id; pgid = 0则默认使用pid新建group
+
+#### 2. 利用/bin/kill可执行文件发信号
+
+linux\> /bin/kill -{signum} {+/-}
+
+整数视为pid, 负数视为-pgid. 进程组中每个进程都会收到SIG
+
+#### 3. 从键盘发信号
+
+- Shell只能有一个前台job和0…*个后台job
+
+  - shell为每个job创建进程组, 管道``|``可以通过共同的父进程链接多个进程
+
+  ![image-20190428211851800](Chp8Exceptions.assets/image-20190428211851800.png)
+
+- 键盘的```Ctrl+C```发送SIGINT到前台进程组, 默认终止组内所有进程, ```Ctrl+Z```挂起
+
+#### 4. 系统```kill```函数发送信号
+
+![image-20190428212207376](Chp8Exceptions.assets/image-20190428212207376.png)
+
+成功返回0, 错误返回-1
+
+- pid>0: kill将信号sig通过kernel发送给进程pid
+- pid=0: 发送给caller所在的进程组(包括自己)
+- pid<0: 发送给进程组-pid
+
+#### 5. 系统```alarm```函数发送信号
+
+![image-20190428212825393](Chp8Exceptions.assets/image-20190428212825393.png)
+
+secs秒之后向caller发送SIGALRM信号, secs=0则不会设置闹钟; 任何时候调用都会取消之前的闹钟, 返回剩余时间
+
+### 5.3 Receiving Signals
+
+从内核回到用户模式后会检查进程没有被block的待处理信号集合, 即(pending & ~blocked)
+
+- 为空: 正常执行逻辑控制流中的指令
+- 非空: 内核选择最小的信号强制接收并处理
+- 处理方式: 终止, 终止+dump, suspend, ignore
+
+进程通过signal函数改变处理信号方式(SIGSTOP和SIGKILL不可修改):
+
+![image-20190428214828527](Chp8Exceptions.assets/image-20190428214828527.png)
+
+- handler = SIG_IGN: ignore
+- handler = SIG_DFL: 恢复default
+- handler为用户定义的函数指针, 则函数处理(installing)
+- handler 也可以被其他不同的信号中断
+
+![image-20190428215405133](Chp8Exceptions.assets/image-20190428215405133.png)
+
+### 5.4 Blocking and Unblocking Signals
+
+- Implicitly: 内核默认block正在与处理的同种信号
+- explicitly: 利用sigpromask函数明确阻塞与解阻信号
+
+> ![image-20190428221452765](Chp8Exceptions.assets/image-20190428221452765.png)
+
+- sigpromask改变block向量
+  - how = SIG_BLOCK: blocked = blocked | set
+  - how = SIG_UNBLOCK: blocked = blocked & ~set
+  - how = SETMASK: blocked = set
+  - oldset非空, 则之前的blocked写入
+- sigempty初始化诶空, sigfillset置位满, sigaddset加入固定signum, sigdelset删除固定位
+- sigismember检查signum是否是set成员
+
+### 5.5 Writing Signal Handlers
+
+handler需要考虑与用户程序并发, 共享全局变量, 可能与其干扰
+
+#### 1. Safe Signal Handling
+
+- KISS
+- SIO_func: p767
+- save and restore errno
+- Block all signals, protect access to globals
+- volatile declaration (flag)
+- sig_atomic_t decalaration (flag)
+
+#### 2. Correct Signal Handling
+
+未处理信号没有队列 (pending中只有一个bit记录)
+
+例如利用SIGCHLD回收密集子进程
+
+```c
+/* main */
+for (int i = 0; i < 3: i++) {
+  if ( Fork() == 0) {
+    printf("from child %d\n". (int)getpid());
+    exit(0);
+  }
+}
+/* parrent process do something else */
+
+void handler_reap(int sig) {
+  int olderrno = errno;
+  if(waitpid(-1, NULL, 0) < 0){
+    sio_error("waitpid error");
+  }
+  
+  sio_puts("reapped");
+  /* enhanced handler */
+  Sleep(1);
+  errnp = olderrno;
+}
+```
+
+用以上松散的handler回收时, 无法回收第三个子进程. 第三个SOGCHLD无法进入pending队列. 故不可以使用signal来计数
+
+修正:
+
+pending位说明的是: 自从进程收到signal之后, **至少**一个同类型的signal也被发送了;
+
+handler必须在每次被调用时, **尽可能多的回收已经僵死的进程:**
+
+```c
+void handler_reap_include_zombie(sig){
+  int olderrno = errno;
+  // reap till there's no zombie
+  while(waitpid(-1, NUL, 0) > 0){
+    sio_puts("reapped one");
+  }
+  if(error != ECHILD) {
+    sio_error("waitpid error");
+  }
+  // sleep to accumulate zombie
+  Sleep(1);
+  errno = olderrno;
+}
+```
+
+#### 3. Portable Signal Handling
+
