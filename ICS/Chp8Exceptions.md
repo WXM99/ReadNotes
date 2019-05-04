@@ -685,3 +685,65 @@ void handler_reap_include_zombie(sig){
 
 #### 3. Portable Signal Handling
 
+Unix缺陷: 不同的系统有不同的信号处理语义
+
+- ```signal()``` 在老版本Unix在handler捕获signal k之后会把对k的Handle行为恢复到默认 (注册的一次性)
+
+- syscall()可以被中断
+
+  read , write, accept等潜在阻塞进程的调用称之为慢速系统调用, 早版本Unix进行慢调用后如果被handler中断则不会返回程序, 直接返回用户错误条件, errno = EINTR
+
+- POSIX定义了sigaction()来让用户明确指明信号处理语义
+
+```c
+#include <signal.h>
+int sigaction(
+	int signum,
+  struct sigaction *act,
+  struct sigaction *oldact
+);
+```
+
+要求用户自定义复杂的结构条目指明信号处理设置
+
+- 包装的sigaction(): Signal()
+
+  - 调用方式同signal()
+  - 当前handler处理的signal会被block
+  - signal没有列队
+  - 可能的话, 中断的syscall会重启
+  - 注册的handler一直保持, 直到Signal(SIG_IGN | SIIG_DFL)
+
+  ![image-20190504001956444](Chp8Exceptions.assets/image-20190504001956444.png)
+
+### 5.6 Synchronizing Flows to Avoid Nasty Concurrency Bugs
+
+- 读写相同位置的并发程序发生的交错与指令数量指数关系
+- 同步并发流得到最大的可行交错集合, 得到正确的结果
+- 例如shell中父进程调用addjob和handler调用deletejob之间的竞争
+  - add早于delete 结果正确, 反之错误
+  - 调度随机性导致父进程和handler之前会出现并发错误
+  - 利用block signal来使得相互竞争的函数同步运行
+
+### 5.7 Explicitly Waiting for Signals
+
+main程序显示的等待某signal handler的情况 (shell创建前台任务后主程序必须等待SIGCHLD回收前台后再运行)
+
+- 主程序的等待方式:
+  1. while(not_receive){}: 太多次测试指令, 浪费
+  2. while(not_receive){pause()}: 循环测试和pause之间的SIG会导致永久休眠 (调度至别的process)
+  3. while(not_receive){sleep(sometime)}: sometime不好确定, 影响唤醒精度 (receive和wakeup的时间差)
+  4. sigsuspend() : 合理
+- sigsuspend(const sigset_t *mask):
+  - 暂时用mask阻塞signals
+  - suspend进程, 直到收到一个信号
+  - 之后要么handler, 则从handler返回主程序, 回复block
+  - 要么终止, 则直接终止, 不用从sigsuspend返回
+  - 等价于原子性的:
+    - sigpromask(SIG_SETMASK, &mask, &prev);
+    - pause();
+    - sigpromask(SIG_SETMASK, &prev, NULL);
+
+## 6. Nonlocal Jumps
+
+用户级别的异常控制流 (任意门)
