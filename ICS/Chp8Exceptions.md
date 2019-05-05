@@ -747,3 +747,9 @@ main程序显示的等待某signal handler的情况 (shell创建前台任务后�
 ## 6. Nonlocal Jumps
 
 用户级别的异常控制流 (任意门)
+
+## 7. Tools for Manipulating Processes
+
+- STRACE: 打印运行进程和其子进程的每个系统调用轨迹
+- PS: 进程列表
+- TOP: 当前进程的资源使用信息
