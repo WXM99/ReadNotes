@@ -113,7 +113,7 @@ Binary relocatable object file
 
 ## 4. Relocatable Object File
 
-<img src='./Chp 7 Link.assets/image-20190402204913456.png' style='width: 30%; margin: 0px auto'>
+<img src='./Chp 7 Link.assets/image-20190402204913456.png' style='width: 50%; margin: 0px auto'>
 
 - ELF header: 
 
@@ -224,7 +224,7 @@ typedef struct {
 
 ### 6.1 Duplicate Symbol Names
 
-- 强弱符号 (GLOBAL 不考虑static)
+- 强弱符号 (GLOBAL 不考虑static) 函数作为强符号
 
   - 强符号: 函数和已初始化(包括初始化为0)的全局变量 (.text .data UNDEF .bss) 
   - 弱符号: 未初始化的全局变量 (COMMON)
