@@ -987,12 +987,3 @@ assembler会相应地在.rel.text存放对应的relocation entry r, 其结构如
 > - READELF: 显示.o文件的完整结构, 包括ELF header中的编码信息和SIZE以及NM的功能
 > - OBJDUMP: 二进制解析解析工具基础, 可以显示一个.o文件的所有信息; 包括将,text中的二进制指令反汇编
 > - LDD: 列出可执行文运行时需要的所有共享库
-
-
-
-
-
-
-
-
-
