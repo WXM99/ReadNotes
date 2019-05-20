@@ -99,5 +99,46 @@
 
 ### 1.2 Constraints
 
+####  Integrity Constrains
+
+1. Non-NULL Constraints
+
+   add ==not null== declaration when creating
+
+   ```sql
+   create table Students(
+   	sID int, 
+     sName text,
+     GPA real not null,
+     sizeHS int
+   );
+   ```
+
+2. Key Constraints
+
+   add ==primary key== or ==unique== declaration when creating
+
+   ```sql
+   create table Students(
+   	sID int primary key, 
+     sName text,
+     GPA real,
+     sizeHS int
+   );
+   ```
+
+   > - multiple columns primary-keys: primary key (c1, c2 ...)
+   > - duplicated null in unique is allowed, while pk columns ot
+
+   the values in the column as key must be unique
+
+3. Attribute-based and tuple-based constraints
+
+   1. Attribute-based check constraints
+
+      
+
+4. General assertions
+
 
 
