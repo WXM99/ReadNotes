@@ -1,8 +1,6 @@
 # CHP9 Visual Memory
 
-
-
-## 〇Dynamic Memory Allocator
+## 〇 Dynamic Memory Allocator
 
 > 分配程序运行中需要的额外内存
 >
