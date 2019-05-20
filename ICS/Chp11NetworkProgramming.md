@@ -122,3 +122,53 @@ Transaction in CS:
 
 ## 3. The Global IP Internet
 
+![image-20190514223059517](Chp11NetworkProgramming.assets/image-20190514223059517.png)
+
+<div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>internet C/S frame </div>
+
+- 因特网(Internet) host运行TCP/IP协议
+  - TCP: Transmission Control Protocol
+  - IP: Internet Protocol
+- 客户端和服务器混合使用socket接口函数和UnixIO通信
+  - socket接口函数是一种syscall
+  - socket接口函数进入内核后调用内核的TCP/IP函数
+- TCP/IP是一个协议族
+  - IP协议提供基本的命名个传送机制
+  - 传送机制指host之间发送包, datagram
+  - IP不会视图恢复丢失的包
+  - UDP是扩展的IP, 使包可以在进程之间传递
+  - TCP建立在IP上, 提供了进程之间的双相连接
+  - TCP/IP可以视为是一个独立的整体协议
+- Internet的特性
+  - host被映射为32位IP地址
+  - IP地址被映射为Internet domain name的标识符
+  - Internet host的进程可以链接到其他internet host process进行通讯
+- IPv4和IPv6
+  - IP版本4: 32位
+  - IP版本6: 128位
+
+### 3.1 IP Address
+
+IP: 32位无符号整数
+
+```c
+struct in_addr {
+  uint32_t s_addr;
+}
+```
+
+TCP/IP为整数数据定义了统一的network byte order. IP地址中总是用大端法. host若为小端法则转换
+
+
+
+```c
+#include <arpa/inet.h>
+
+uint32_t htonl(uint32_t hostlong);
+uint16_t htons(uint16_t hostshort);
+
+uint32_t ntohl(uint32_t netlong);
+uint16_t ntohs(uint16_t netshort);
+
+```
+
