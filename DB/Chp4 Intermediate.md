@@ -128,17 +128,52 @@
    ```
 
    > - multiple columns primary-keys: primary key (c1, c2 ...)
-   > - duplicated null in unique is allowed, while pk columns ot
+   > - duplicated null in unique is allowed, while pk columns not
 
    the values in the column as key must be unique
 
 3. Attribute-based and tuple-based constraints
 
-   1. Attribute-based check constraints
+   - Attribute-based ==check== constraints 
 
-      
+   ```sql
+   create table Students (
+   	sID int,
+     sName text,
+     GPA real check(GPA <= 4.0 and GPA >= 0.0),
+     sizeHS int check(sizeHS < 5000)
+   );
+   ```
+
+   - Tuple-based constraints
+
+     check at the end of the declaration
+
+   ```sql
+   create table Apply (
+   	sID int,
+     cName text,
+     major text,
+     decision text,
+     check (
+     	decision = 'N' or
+       cName <> 'Stanford' or
+       major <> 'CS'
+     )
+   );
+   ```
 
 4. General assertions
+
+   ```sql
+   create assertion Key
+   check (
+   	(select count(distinct A) from T) =
+     (select count(*) from T)
+   );
+   ```
+
+   
 
 
 
