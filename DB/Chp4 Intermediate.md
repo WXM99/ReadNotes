@@ -99,8 +99,6 @@
 
 ### 1.2 Constraints
 
-####  Integrity Constrains
-
 1. Non-NULL Constraints
 
    add ==not null== declaration when creating
@@ -173,7 +171,18 @@
    );
    ```
 
+5. Referential Integrity
+
+   subset dependency: ```attr_name varchar(20) references table_name```
+
+   ```sql
+   create table course (
+   	...
+     foreign key (dept_name) references departname
+     	on delete cascade
+     	on update cascade
+     ...
+   )
+   ```
+
    
-
-
-
