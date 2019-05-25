@@ -30,7 +30,7 @@ Transaction in CS:
 
 数据通过network adaptor提供的物理接口, 从网络收发数据, 然后通过DMA传送到main memory
 
-![image-20190510205648861](Chp11NetworkProgramming.assets/image-20190510205648861.png)
+![image-20190525094133781](Chp11NetworkProgramming.assets/image-20190525094133781.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>网络主机结构</h2> </div>
 
@@ -55,7 +55,7 @@ Transaction in CS:
 
 - 次层级 Bridged Ethernet
 
-  ![image-20190510235312071](Chp11NetworkProgramming.assets/image-20190510235312071.png)
+  ![image-20190525094207945](Chp11NetworkProgramming.assets/image-20190525094207945.png)
 
   <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>Bridged Ethernet</h2> </div>
 
@@ -65,7 +65,7 @@ Transaction in CS:
 
 - 高层级 Router Internet
 
-  ![image-20190511001756210](Chp11NetworkProgramming.assets/image-20190511001756210.png)
+  ![image-20190525094223392](Chp11NetworkProgramming.assets/image-20190525094223392.png)
 
   <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'> A small internet </h2> </div>
 
@@ -94,7 +94,7 @@ Transaction in CS:
 
 > 有两个LAN和一个router构成 client运行在hostA与LAN1相连 server运行在hostB与LAN2相连
 
-![image-20190511002944596](Chp11NetworkProgramming.assets/image-20190511002944596.png)
+![image-20190525094416320](Chp11NetworkProgramming.assets/image-20190525094416320.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>data travel in internet. <br> PH: internet package header; FH1: frame header for LAN1</h2> </div>
 
@@ -129,27 +129,38 @@ Transaction in CS:
 - 因特网(Internet) host运行TCP/IP协议
   - TCP: Transmission Control Protocol
   - IP: Internet Protocol
+  
 - 客户端和服务器混合使用socket接口函数和UnixIO通信
   - socket接口函数是一种syscall
   - socket接口函数进入内核后调用内核的TCP/IP函数
+  
 - TCP/IP是一个协议族
+  
+  ![image-20190523111501821](Chp11NetworkProgramming.assets/image-20190523111501821.png)
+  
+  ![image-20190523111506760](Chp11NetworkProgramming.assets/image-20190523111506760.png)
+  
   - IP协议提供基本的命名个传送机制
   - 传送机制指host之间发送包, datagram
   - IP不会视图恢复丢失的包
   - UDP是扩展的IP, 使包可以在进程之间传递
   - TCP建立在IP上, 提供了进程之间的双相连接
   - TCP/IP可以视为是一个独立的整体协议
+  
+  ![image-20190525095022570](Chp11NetworkProgramming.assets/image-20190525095022570.png)
+  
 - Internet的特性
   - host被映射为32位IP地址
   - IP地址被映射为Internet domain name的标识符
   - Internet host的进程可以链接到其他internet host process进行通讯
+  
 - IPv4和IPv6
   - IP版本4: 32位
   - IP版本6: 128位
 
 ### 3.1 IP Address
 
-IP: 32位无符号整数
+#### IP: 32位无符号整数
 
 ```c
 struct in_addr {
@@ -159,16 +170,269 @@ struct in_addr {
 
 TCP/IP为整数数据定义了统一的network byte order. IP地址中总是用大端法. host若为小端法则转换
 
-
+```c
+#include <arpa/inet.h>
+
+/* return value according to net */
+uint32_t htonl(uint32_t hostlong);
+uint16_t htons(uint16_t hostshort);
+/* return value according to host */
+uint32_t ntohl(uint32_t netlong);
+uint16_t ntohs(uint16_t netshort);
+```
+
+- ``htonl`` host to net long: 32位整数由主机顺序转换为网络顺序
+- ```ntohl``` net to host long: 32位整数由网络顺序转换为主机顺序
+- ```htons``` host to net short
+- ```ntohs``` net to host short
+- 没有64位整数的函数
+
+#### Dotted-decimal notion
+
+将address的每个Byte用十进制表示, 点隔开
+
+```128.2.194.242 == 0x8002c2f2```
+
+IP地址与十进制的转换
 
 ```c
 #include <arpa/inet.h>
-
-uint32_t htonl(uint32_t hostlong);
-uint16_t htons(uint16_t hostshort);
-
-uint32_t ntohl(uint32_t netlong);
-uint16_t ntohs(uint16_t netshort);
 
+int inet_pton(AF_INET, const char *src, void *dst);
+// Returns:1 if OK, 0 if src is invalid dotted decimal, -1 on error
+
+const char *inet_ntop(AF_INET, const void *src char *dst, socklen_t size);
+// Returns: pointer to a dotted decimal string if OK, NULL on error
 ```
+
+### 3.2 Internel Domain Names
+
+- Domain name: 句点分割的单词
+
+  - 域名有树结构, 每个域名编码是其中一个node
+  - 子树为子域 subdomain
+    1. root未命名
+    2. 第一层为一级域名, 由ICANN定义. 比如com, edu, gov etc.
+    3. 下一层是二级域名, 由ICANN的各个授权代理分配
+    4. 得到二级域名的组织可以在子域中创建任何新域名
+
+  ![image-20190525101428130](Chp11NetworkProgramming.assets/image-20190525101428130.png)
+
+- The Internet 定义了Domain Names 和 IP Address之间的map
+
+  - 1988年前, map通过HOSTS.TXT手工维护
+  - 之后, 通过全球范围内的数据库DNS (Domain Name System)来维护
+    - DNS DB由百万条host entry structures组成
+    - 每个entry定义一组域名和IP地址之间的映射
+  - nslookup用来查看与某个IP对应的域名
+    - 1-1 一一映射: 有个IP对应一个域名
+    - M-1 多对一: 多个域名对应一个IP
+    - M-N 多对多: 多个域名映射到同一组多个IP
+    - 1-? 某次合法域名没有映射到IP
+
+### 3.3 Internet Connections
+
+- P2P connection: 链接hosts上的一对进程
+
+- full duplex: 数据双向流动
+
+- reliable: 按序收发字节流
+
+  ---
+
+#### Socket
+
+- 套接字是连接的一个端点, 有对应的socket address
+
+  - socket address: Internet address + 16-bit integer port
+
+    ```address : port```
+
+- Client发送连接请求时. client socket地址中的端口由kernel自动分配, ephemeral port
+
+- Server socket地址中的port 是well-known port, 与业务服务对应
+
+  - well-known service name与port对应. etc/services有name与port之间的映射
+
+- 连接由两端的套接字地址唯一确定, 这个地址叫做socket pair
+
+  ```cliend_addr : client_port, server_addr : server_port```
+
+![image-20190525113435408](Chp11NetworkProgramming.assets/image-20190525113435408.png)
+
+## 4. The Sockets Interface
+
+> Sockets Interface是一组函数, 常与Unix IO结合创建网络应用
+
+- Sockets interface集成在大多现代OS
+
+  - 所有Unix变种OS
+  - Windows
+  - Macintosh
+
+- Sockets Interface in a CS transaction
+
+  ![image-20190525132927379](Chp11NetworkProgramming.assets/image-20190525132927379.png)
+
+### 4.1 Socket Address Structures
+
+- **What is a socket?**
+
+  - From the perspective of the Linux Kernel
+
+    an ==endpoint== for communication
+
+  - From the perspective of a Linux program
+
+    a ==descriptor== that lets an application read/write from/to the network
+
+  - Key idea
+
+    Unix uses the same ==abstraction== for both regular ==file I/O==  and ==network I/O==
+
+    The main ==difference== between file I/O and socket I/O is how the application ==“opens"== the socket descriptors
+
+- **Key data structures** — sockaddr_in
+
+  Internet socket address
+
+  ```c
+  /* IP socket address structure*/
+  struct sockaddr_in  {
+    uint16_t sin_family; /*Address family (AF_INET) */
+    uint16_t sin_port;   /*Port number*/
+    struct in_addr  sin_addr;   /*IP address*/
+    unsigned char sin_zero[8];   /*Pad to “sockaddr”*/
+  };
+  
+  /* Internet address */
+  struct in_addr {
+    uint32_t s_addr; /* 32-bit IP address */ 
+  };
+  ```
+
+  - sin_family: 成员是AF_INET
+  - sin_port: 16位端口号 (Big-endding)
+  - sin_addr: 32位IP地址 (Big-endding)
+
+  ```c
+  /* Generic socket address structure */
+  struct sockaddr {
+    uint16_t sin_family;  /*Protocol family*/
+    char     sa_data[14]; /*address data*/
+  };
+  typedef struct sockaddr SA;
+  ```
+
+  - 泛化的SA结构
+  - 用于connect, bind, accept函数取代void*
+  - 应用程序将协议特定的structure转化为通用structure
+
+### 4.2 The ```socket``` function
+
+> Client 和 server 通过 ```socket``` 创建socket descriptor
+
+```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
+int socket (int domain, int type, int protocol) ;
+```
+
+返回socket descriptor (-1则出错)
+
+```c
+clientfd = Socket(AF_INET, SOCK_STREAM, 0);
+```
+
+- AF_INET表示使用的是IPv4 32位地址
+- SOCK_STREAM表示socket为连接的一个端点
+- ```getaddrinfo```函数可以自动生成这些参数, 实现协议无关的低耦合代码
+- 此时clientfd仅仅部分打开, 不能用于读写
+
+### 4.3 The ``connect`` function
+
+> Client通过``client``函数与server建立连接
+
+```c
+#include <sys/socket.h>
+int connect (int clientfd, const struct sockaddr *addr, socklen_t addrlen) ;
+```
+
+- 成功返回0, 失败-1
+- 与地址为addr的服务器建立internet connection
+- addrlent = sizeof(socketaddr_in)
+- 成功后clientfd可以准备读写
+- 得到socket pair: (x:y, addr.sin_addr:addr.sin_port) xy表示客户端地址和端口
+- 最好使用``getaddrinfo``提供参数
+
+### 4.4 The ```bind``` function
+
+> 服务器用来与client建立连接
+
+```c
+#include <sys/socket.h>
+int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) ;
+```
+
+- 成功返回0, 失败-1
+- kernel将addr中的服务器socketaddr和descriptor sockfd联系起来
+- addrlen = sizeof(sockaddr_in)
+
+### 4.5 The ``listen`` function
+
+> kernel认为socket函数创建的是主动socket, 存在于client, listen告诉内核descriptor是server使用的而不是client
+
+```c
+#include <sys/socket.h>
+int listen(int sockfd, int backlog);
+```
+
+- 将sockfd从主动socket转化成监听socket
+- listening socket监听客户端的连接请求
+- backlog按时内核拒绝请求时请求队列的数量
+- backlog针对TCP/IP
+
+### 4.6 The ``accept`` function 
+
+> server 调用来等待客户端的连接请求
+
+```c
+#include <sys/socket.h>
+int accept(int listenfd, struct sockaddr *addr, int *addrlen);
+```
+
+- 等待到达listenedfd的请求
+- 在addr中填写client的sockaddr
+- 返回一个connected descriptor可被Unix IO用来与client通信
+
+> - listenedfd 和 connected descriptor不同
+>
+>   前者是client连接的一个目标端点, 只被创建一次, 一直存活
+>
+>   后者是已经建立的连接端点, 每次接受服务时创建, 只存活于一次服务
+>
+> ![image-20190525150022490](Chp11NetworkProgramming.assets/image-20190525150022490.png)
+>
+> 1. 服务器调用accept, 等待请求到达listenedfd
+> 2. 客户端调用connect, 请求连接到listenedfd
+> 3. accept函数打开新的connfd, 在connfd和clientfd之间建立连接, 返回connfd给客户端程序; 此时客户端从connect得到返回
+>
+> 此后客户端和服务器通过clientfd和connfd传送数据
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
