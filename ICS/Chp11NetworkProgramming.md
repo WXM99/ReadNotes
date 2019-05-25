@@ -420,11 +420,239 @@ int accept(int listenfd, struct sockaddr *addr, int *addrlen);
 >
 > 此后客户端和服务器通过clientfd和connfd传送数据
 
+### 4.7 Host and Service Conversion
+
+```getaddrinfo``` 和 ```getnameinfo```实现二进制socket address structures与主机名, 主句地址, 服务名, 端口号的字符串转化.
+
+与sockets interface一起使用可实现与网络协议解耦的编程
+
+#### 1. getaddrinfo
+
+将主机名, 主机地址, 服务名, 端口号的字符串转化为SA struct. 是弃用的gethostbyname和getservbyname的替代品. 是reentrant的, 适用于任何协议
+
+```c
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+int getaddrinfo(
+  const char *host, 
+  const char *service, 
+  const struct addrinfo *hints, 
+  struct addinfo **result
+);
+// Returns:0 if OK, nonzero error code on error
+
+void freeaddinfo(struct addinfo *result);
+// Returns:nothing 
+
+Const char *gai_strerror(int errocde);
+// Returns: error message
+```
+
+- result指向addrinfo结构的链表, 每个结构对应于一个host和service的SA
+
+  ```c
+  struct addrinfo {
+  	int ai_flags;		/* Hints argument flags */
+  	int ai_family; 	/* First arg to socket function */
+  	int ai_socktype; 	/* Second arg to socket function */
+  	int ai_protocol; 	/* Third arg to socket function */
+  	char *ai_canonname; /* Canonical hostname */
+  	size_t ai_addrlen; 	/* Size of ai_addr struct */
+  	struct sockaddr *ai_addr; /* Ptr to socket address structure */
+  	struct addrinfo *ai_next; /* Ptr to next item in linked list */
+  };
+  ```
+
+  ![image-20190525153843167](Chp11NetworkProgramming.assets/image-20190525153843167.png)
+
+- 调用getaddrinfo
+
+  遍历这个列表, 一次尝试每个sockaddr, 直到socket和connect成功. 建立连接.
+
+  服务器遍历直到socket和bind成功. descriptor绑定到合法SA. 最后使用free释放链表
+
+  - host参数可以是域名或者Dotted-Decimal, IP
+  - service参数可以是可以是服务名, 端口号
+  - hints对返回的SA链表有结构控制
+  - 默认返回IPv4的SA, 这只ai_family为AF_INET6限制IPv6
+
+#### 2. getnameinfo
+
+与getaddrinfo相反, 将SA转换成host和serveice名字字符
+
+```c
+#include <sys/socket.h>
+#include <netdb.h>
+
+int getnameinfo(
+  const struct sockaddr *sa,
+  socklen_t salen,
+  char *host,
+  size_t hostlen,
+  char* service,
+  size_t servlen,
+  int flags
+);
+```
+
+- sa: 指向大小为salen的sa struct
+- host: 指向大小为hostlen的char buffer
+- service同上
+- getnameinfo将sa转换成主机名和服务名字符串
+
+### 4.8 Helper functions
+
+#### 1. open_clientfd
+
+> client调用与server链接
+
+```c
+#include "csapp.h"
+int open_clientfd(char *hostname, char *port);
+```
+
+- 要求Server运行在hostname上, 并在port上listen request
+- 返回一个socket descriptor, 利用Unix IO读写
+- 协议无关
+- 实现:
+  - 调用getaddrinfo逐个检查SA
+  - 直到调用socket和connect成功
+  - connect失败则检查下一个entry, 之前关闭descriptor
+  - connect成功则释放内存, 返回descriptor
+
+#### 2. open_listened
+
+```c
+#include 'csapp.h'
+int open_listenfd (char *port);
+```
+
+- 打开并返回一个 listened descriptor
+- 准备好在port上监听请求
+- 实现:
+  - 调用getnameinfo, 遍历列表
+  - 直到调用socket和bind成功
+  - 调用listen函数将listenedfd转变为监听descriptor并返回
+  - listen失败则关闭descriptor
+
+### 4.9 echo Client and Server Demo
+
+## 5. Web Server
+
+### 5.1 Web Basics
+
+- HTTP (HyperText Transfer Protocol): 
+
+  - web客户端打开一个到服务器的internet链接
+  - 请求内容
+  - Server响应内容, 关闭连接
+  - 浏览器读取内容并显示
+
+- Conventional File Retrieval Service (FTP)
+
+  web的内容可以由HTML来编写, 提供超链接服务, 是指向任何Internet host内容上的指针
+
+### 5.2 Web Content
+
+MIME (Multipurpose Internet  Mail Extension)
+
+- text/html          HTML page
+- text/plain          Unformatted text
+- application/postscript         Postcript document
+- image/gif  Binary image encoded in GIF format
+- image/jpg  Binary image encoded in JPG format
+
+Web Server提供服务内容:
+
+- 读取磁盘文件, 并返回给Client
+
+  磁盘文件称为static content, 返回称为serving static content
+
+- 运行一个可执行文件, 将其输出返回Client
+
+  产生的输出结构称为dynamic content, 返货的过程为serving dynamic content
+
+每个web server返回的内容都与之管理的文件相关联, 这些文件拥有唯一名字URL Universal Resource Locator
+
+- 静态文件:
+
+  ```http://www.google.com:80/index.html```
+
+- 动态内容
+
+  ```http://www.cs.cmu.edu:8000/cgi-bin/adder?15000&213```
+
+- URL不对静态动态区分, server可以用目录区分
+
+- ``/``不代表Linux根目录. 表示请求内容的主目录
+
+- 浏览器自动补足/, /被server解析成默认的文件
+
+### 5.3 HTTP Transactions
+
+利用Telnet与server会话
+
+- HTTP请求
+
+  ```bash
+  #Client: open connection to server
+  unix> telnet ipads.se.sjtu.edu.cn 80
+  #Telnet prints 3 lines to the terminal
+  Trying 202.120.40.88...
+  Connected to ipads.se.sjtu.edu.cn.
+  Escape character is '^]'.
+  #Client: request line
+  GET /courses/ics/index.shtml HTTP/1.1
+  #Client: required HTTP/1.1 HOST header
+  host: ipads.se.sjtu.edu.cn
+  #Client: empty line terminates headers
+       #\r\n
+  ```
+
+  - request line: method URI version
+    - method: GET, POST, OPTIONS...
+    - URI(Uniform Resource Identifier): URL后缀, 文件名和可选参数
+    - version: HTTP版本
+
+  - request headers: header-name : header-data
+
+  - 空行回车(\r\n)发送请求
+
+- HTTP响应
+
+  ```bash
+  # Server: response line
+  HTTP/1.1 200 OK
+  # Server: followed by five response headers
+  Server: nginx/1.0.4
+  Date: Thu, 29 Nov 2012 10:15:38 GMT
+  # Server: expect HTML in the response body 
+  Content-Type: text/html
+  # Server: expect 11,560 bytes in the resp body
+  Content-Length: 11560
+  # Server: empty line (“\r\n”) terminates hdrs
+  
+  ```
+
+  
+
+  - response line: version status-code status-massage
+    - 200 OK                  Request was handled without error
+    - 301 Moved               Provide alternate URL
+    - 403 Forbidden           Server lacks permission to access file
+    - 404 Not found           Server couldn’t find the file
+    - 501 Not Implemented           Server does not support the request  method
+    - 505 HTTP version not supported    Server does not support version in request
+  - response header
+  - 空行回车终止header
+  - response body
+
+### 5.4 Dynamic Service Content
 
 
 
-
-
+## 6. Tiny Web Server
 
 
 
