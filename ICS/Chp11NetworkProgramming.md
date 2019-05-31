@@ -625,6 +625,89 @@ int open_listenfd(char *port)
 
 ### 4.9 echo Client and Server Demo
 
+client
+
+```c
+#include "csapp.h"
+
+int main(int argc, char **argv) 
+{
+    int clientfd;
+    char *host, *port, buf[MAXLINE];
+    rio_t rio;
+
+    if (argc != 3) {
+      fprintf(stderr, "usage: %s <host> <port>\n", argv[0]);
+      exit(0);
+    }
+    host = argv[1];
+    port = argv[2];
+
+    clientfd = Open_clientfd(host, port);
+    Rio_readinitb(&rio, clientfd);
+
+    while (Fgets(buf, MAXLINE, stdin) != NULL) {
+      Rio_writen(clientfd, buf, strlen(buf));
+      Rio_readlineb(&rio, buf, MAXLINE);
+      Fputs(buf, stdout);
+    }
+    Close(clientfd); //line:netp:echoclient:close
+    exit(0);
+}
+/* $end echoclientmain */
+```
+
+server
+
+```c
+#include "csapp.h"
+void echo(int connfd);
+
+int main(int argc, char **argv) 
+{
+    int listenfd, connfd;
+    socklen_t clientlen;
+    struct sockaddr_storage clientaddr;  /* Enough space for any address */  //line:netp:echoserveri:sockaddrstorage
+    char client_hostname[MAXLINE], client_port[MAXLINE];
+
+    if (argc != 2) {
+	fprintf(stderr, "usage: %s <port>\n", argv[0]);
+	exit(0);
+    }
+
+    listenfd = Open_listenfd(argv[1]);
+    while (1) {
+	clientlen = sizeof(struct sockaddr_storage); 
+	connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
+        Getnameinfo((SA *) &clientaddr, clientlen, client_hostname, MAXLINE, 
+                    client_port, MAXLINE, 0);
+        printf("Connected to (%s, %s)\n", client_hostname, client_port);
+	echo(connfd);
+	Close(connfd);
+    }
+    exit(0);
+}
+/* $end echoserverimain */
+/* $begin echo */
+#include "csapp.h"
+
+void echo(int connfd) 
+{
+    size_t n; 
+    char buf[MAXLINE]; 
+    rio_t rio;
+
+    Rio_readinitb(&rio, connfd);
+    while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) { //line:netp:echo:eof
+	printf("server received %d bytes\n", (int)n);
+	Rio_writen(connfd, buf, n);
+    }
+}
+/* $end echo */
+```
+
+
+
 ## 5. Web Server
 
 ### 5.1 Web Basics
