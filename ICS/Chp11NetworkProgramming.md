@@ -820,7 +820,74 @@ Web Server提供服务内容:
 
 ### 5.4 Dynamic Service Content
 
+#### CGI (Common Gateway Interface) C/S app的实现标准
 
+- Client在URI中传递参数
+
+  ```bash
+  GET /cgi-bin/adder?15000&213 HTTP/1.1
+  ```
+
+- Server将参数传递子进程
+
+  ``execve``之前, 子进程设置CGI的环境变量``QUERY_STRING.``
+
+  服务应用 (==CGI脚本==) 通过Linux ``getenv``引用参数
+
+- Server将其他信息传递给子进程
+
+  通过CGI其他环境变量
+
+  ![image-20190601001130037](Chp11NetworkProgramming.assets/image-20190601001130037.png)
+
+- 子进程结果输出
+
+  - CGI脚本将结果输出到 stdout (fd = 1)
+  - 子进程在``execve``CGI脚本之前, 利用Linux ``dup2``, 将stdout和Server accept的connectFD关联
+  - CGI脚本直接输出到Client (父子进程共享file table)
+  - CGI运行对Server父进程黑箱, 有子进程负责Content-type和Content-length生成
+
+- CGI样例``adder``
+
+  ```c
+  /* $begin adder */
+  #include "csapp.h"
+  
+  int main(void) {
+      char *buf, *p;
+      char arg1[MAXLINE], arg2[MAXLINE], content[MAXLINE];
+      int n1=0, n2=0;
+  
+      /* Extract the two arguments */
+      if ((buf = getenv("QUERY_STRING")) != NULL) {
+        p = strchr(buf, '&');
+        *p = '\0';
+        strcpy(arg1, buf);
+        strcpy(arg2, p+1);
+        n1 = atoi(arg1);
+        n2 = atoi(arg2);
+      }
+  
+      /* Make the response body */
+      sprintf(content, "Welcome to add.com: ");
+      sprintf(content, "%sTHE Internet addition portal.\r\n<p>", content);
+      sprintf(content, "%sThe answer is: %d + %d = %d\r\n<p>", 
+  	    content, n1, n2, n1 + n2);
+      sprintf(content, "%sThanks for visiting!\r\n", content);
+    
+      /* Generate the HTTP response */
+      printf("Connection: close\r\n");
+      printf("Content-length: %d\r\n", (int)strlen(content));
+      printf("Content-type: text/html\r\n\r\n");
+      printf("%s", content);
+      fflush(stdout);
+  
+      exit(0);
+  }
+  /* $end adder */
+  ```
+
+  
 
 ## 6. Tiny Web Server
 
