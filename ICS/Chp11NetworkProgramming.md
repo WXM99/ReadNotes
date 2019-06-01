@@ -181,7 +181,7 @@ uint32_t ntohl(uint32_t netlong);
 uint16_t ntohs(uint16_t netshort);
 ```
 
-- ``htonl`` host to net long: 32位整数由主机顺序转换为网络顺序
+- `htonl` host to net long: 32位整数由主机顺序转换为网络顺序
 - ```ntohl``` net to host long: 32位整数由网络顺序转换为主机顺序
 - ```htons``` host to net short
 - ```ntohs``` net to host short
