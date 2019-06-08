@@ -394,4 +394,98 @@ update
 
   set 等号的右值可以是返回单值的sub-query
 
-  
+
+# DSC Chp3
+
+## 附加运算：
+
+1. Rename:
+
+   ```sql
+   old_name as new_name 
+   ```
+
+   在select中：改变属性名
+
+   在from中： 改变关系名
+
+2. Strings util
+
+   ``upper(s)``, ``lower(s)``, ``trim(s)``
+
+   ``like``: %通配，包括空字符，_任意一个字符， \转义escape定义
+
+## 集合运算
+
+union：并集，all不去重复
+
+intersect：交集，all不去重复，重复次数为两个table中独立重复次数少的次数
+
+except：差集，all不去重复，重复项为两个table中独立重复次数的差
+
+## 空值
+
+谓词先手逻辑判断，代数有空则空
+
+distinct去除重复空值，然而谓词null = null是unknown
+
+## 聚集函数
+
+avg，min，max，sum，count
+
+select中出现的，没有被聚集的属性，只能再次出现在group by子句中 => 聚集单值性
+
+## having
+
+group by 之后的谓词选择，属性单值
+
+## 用于table的谓词
+
+table产生于嵌套子查询
+
+成员存在： in，可以接枚举集合(A， B)
+
+集合比较：单值与集合的谓词，利用some(exist) any(all)修饰集合
+
+in <=> = some; not in <=> <> any
+
+eixts：子查询非空谓词
+
+unique：子查询无重复谓词
+
+一般子查询需要外层查询传参(rename)
+
+## from 子句中的子查询
+
+方便两次where谓词筛选
+
+## with as子句
+
+定义临时表,可以定义多个在下文查询中使用
+
+## 标量子查询
+
+返回单值,在select, where, having子句中
+
+## 修改
+
+### delete from relation where
+
+统一测试, 统一删除
+
+### insert into relation values(...)
+
+insert into relation (查询子句): 先计算查询结果, 统一插入
+
+### update relation set attr = new_attr where
+
+set attr = case 
+				when … then … 
+				when … then … 
+				else … 
+			end
+
+set attr = {{标量子句查询}}
+
+
+
