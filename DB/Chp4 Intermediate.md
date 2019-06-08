@@ -185,4 +185,43 @@
    )
    ```
 
-   
+   # DSC Chp4
+
+## Join
+
+- join
+  - (inner) join
+    - on
+    - using
+  - outer join
+    - left 
+    - right
+    - full
+- outer join: on || where
+  - 连接条件必须在on中, 否则on 为 on true, 变为笛卡尔积, 不会补充含有null的一行
+
+## view
+
+虚关系 — query的宏定义
+
+不是逻辑模型的组成, 但是用户可见的关系
+
+可以出现在任何关系名出现的地方, 包括view定义
+
+物化视图: 实际储存关系, 需要维护
+
+view可更新的条件
+
+- from中只有一个表
+- select中只有属性名
+- 没有出现在select上的关系可以为null
+- 没有group by和having子句
+
+## transaction
+
+不可分的动作序列
+
+由其中第一个sql语句开始, commit work(完成) 或者 rollback work(错误回滚) 结束
+
+begin atomic … end
+
