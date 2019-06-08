@@ -91,9 +91,14 @@ call dept_count_proc('Physics', d_count)
 
 - Condition
 - Handle
-- E.g.
 
-```sql
-```
+create trigger _name 
 
-
+- after (before) [alter] 
+- on _table_name ( _attr of _table_name )
+  - referencing new (old) row (table) as _temp_name 
+  - for each row (statement)
+  - when _condition
+  - begin
+    - _do_things
+  - end
