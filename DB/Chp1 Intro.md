@@ -250,4 +250,4 @@ Programs fetche or add data to files cording to requests.
 
 ## Database architecture
 
-![image-20190304192654268](Chp1 Intro.assets/image-20190304192654268.png)
+![image-20190304192654268](./Chp1 Intro.assets/image-20190304192654268.png)
