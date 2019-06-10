@@ -225,3 +225,70 @@ view可更新的条件
 
 begin atomic … end
 
+## Integrity Constraint
+
+修改不会破坏数据库的一致性
+
+alter table _table_name add _constraint
+
+### 单关系约束
+
+作用在一个table
+
+- not null
+- unique: null视为不同
+- check(谓词): 以tuple为单位, check每一个tuple满足谓词
+
+### 参照完整性
+
+外键引用的实体存在性:
+
+- 引用外键关系中的属性集子集取值, 必须是被引用关系中的==存在的值==, 此时属性集称为外码
+- 外码参照要求==存在的值==为被参照关系的==主码==
+
+可以定义参照constraint:
+
+```sql
+foreign key(_attr) references _relation
+```
+
+(_attr是两个table中相同的属性名)
+
+### cascade
+
+添加参照完整性约束时, 补充选项
+
+```sql
+foreign key(_attr) references _relation
+	on delete cascade
+	on update cascade
+```
+
+连级删除或者连级更新: 参照关系改变后, 被参照关系随之改变
+
+可以用set null替代cascade
+
+cascade最多支持一步连级操作, 否则终止事务并撤销
+
+外键可以是null, null满足参照完整性约束
+
+### 事务违反约束
+
+``initially deferred``修饰约束: 事务结束后检查约束
+
+``set constraints _constraint_name deferred`` 可以在事务中设置
+
+默认立即检查约束
+
+
+
+
+
+
+
+
+
+
+
+
+
