@@ -394,8 +394,21 @@ update
 
   set 等号的右值可以是返回单值的sub-query
 
-
 # DSC Chp3
+
+##  DML
+
+```sql
+create table _table_name 
+( 
+  _attr_name type,
+  _attr_name type,
+  ...
+  <constraint>,
+  <constraint>,
+  ...
+);
+```
 
 ## 附加运算：
 
@@ -469,9 +482,15 @@ unique：子查询无重复谓词
 
 ## 修改
 
-### delete from relation where
+### alter table _table_name  add _attr _domain
+
+### alter table _table_name  drop _attr
+
+### delete from _relation where
 
 统一测试, 统一删除
+
+### drop table _relation
 
 ### insert into relation values(...)
 
@@ -479,13 +498,13 @@ insert into relation (查询子句): 先计算查询结果, 统一插入
 
 ### update relation set attr = new_attr where
 
+```sql
 set attr = case 
 				when … then … 
 				when … then … 
 				else … 
 			end
 
-set attr = {{标量子句查询}}
-
-
+set attr = --{{标量子句查询}}
+```
 
