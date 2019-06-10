@@ -44,7 +44,7 @@ Programs fetche or add data to files cording to requests.
 
   > compare to compiled application
 
-![image-20190303185530829](/Chp1 Intro.assets/image-20190303185530829.png)
+![image-20190303185530829](./Chp1_Intro.assets/image-20190303185530829.png)
 
 ## Schema and Instance
 
@@ -203,7 +203,7 @@ Programs fetche or add data to files cording to requests.
 
   - E-R diagram: Unified Modeling Languag (UML)
 
-    ![image-20190304181459034](/Chp1 Intro.assets/image-20190304181459034.png)
+    ![image-20190304181459034](./Chp1_Intro.assets/image-20190304181459034.png)
 
     - Entities set: rectangular box
     - Relationship: diamond
@@ -250,4 +250,4 @@ Programs fetche or add data to files cording to requests.
 
 ## Database architecture
 
-![image-20190304192654268](./Chp1 Intro.assets/image-20190304192654268.png)
+![image-20190304192654268](./Chp1_Intro.assets/image-20190304192654268.png)
