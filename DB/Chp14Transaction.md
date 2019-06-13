@@ -49,13 +49,11 @@ end transaction
 
 Isolation 属性一共支持五种事务设置，具体介绍如下：
 
-l          DEFAULT 使用数据库设置的隔离级别 ( 默认 ) ，由 DBA 默认的设置来决定隔离级别 .
-
 l          READ_UNCOMMITTED 会出现脏读、不可重复读、幻读 ( 隔离级别最低，并发性能高 )
 
 l          READ_COMMITTED  会出现不可重复读、幻读问题（锁定正在读取的行）
 
-l          REPEATABLE_READ 会出幻读（锁定所读取的所有行）
+l          REPEATABLE_READ 会出幻读（锁定读取过的所有行）
 
 l          SERIALIZABLE 保证所有的情况不会发生（锁表）
 
