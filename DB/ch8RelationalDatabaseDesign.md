@@ -60,11 +60,53 @@ atomic attr:
 
 ### 正则覆盖
 
+更新DB后, 需要检测FD是否依然满足
+
+FD过大则检测开销过大, 需要构造一个更小的简化集, 与原集有相同闭包
+
+满足简化集则一定满足原集
+
+- 无关属性: 去除后不改变FD的闭包.
+
+  设原集F有FD: α -> β
+
+  - A∈α && F蕴含了 (F - {α -> β}) ∪ {(α-A) -> β} 
+
+    **(α-A) -> β 可以通过F得到**
+
+  - A∈β && (F - {α -> β}) ∪ {α ->(β-A)} 蕴含了F
+
+    **(F - {α -> β}) ∪ {α ->(β-A)} (F去掉A) 得到α -> A**
+
+  则A是无关属性
+
+- 正则覆盖: F~c~与F相互蕴含所有FD
+
+  - Fc不含有任何无关属性
+  - 左边属性集唯一出现
+
+  ```pseudocode
+  Fc = F
+  repeat
+  	运用合并率
+  	找到无关属性, 删除之
+  	去除相同FD
+  until const Fc
+  ```
+
 ### 无损分解
 
-### 依赖保持
+R~1~, R~2~替代R没有信息损失, 则分解是无损的
 
+**π~R1~(R) natual join π~R2~(R) = R**
 
+必须是相等, 结构不同不可, 规模不同也不可
+
+R1, R2, R为属性集, 无损分解 <=
+
+- R1 ∩ R2 -> R1 ∈ F^+^ ||
+- R1 ∩ R2 -> R2 ∈ F^+^
+- R1 ∩ R2 是R1或R2的超码
 
 ## BCNF: Boyee-Codd 
 
@@ -81,6 +123,23 @@ atomic attr:
 分解直到满足BCNF
 
 ## 保持依赖
+
+- 限定:  闭包中, 只关于某个分解的属性的FDs.
+- 保持依赖: 限定并集的闭包等于原闭包
+
+对F中的一个FD: A -> B, 验证保持性:
+
+```pseudocode
+result := A
+repeat
+	for each Ri
+		t = (result ∩ Ri).closure ∩ Ri
+		result = result ∪ t;
+	end for
+until const result
+```
+
+如果result包含B的所偶属性 => A-> B 保持
 
 原有的依赖能够在同一个R中体现
 
@@ -123,7 +182,11 @@ B - A = B; B ∈ BC => 满足3NF
 
 ### BCNF分解
 
+![image-20190615142522915](ch8RelationalDatabaseDesign.assets/image-20190615142522915.png)
+
 ### 3NF分解
+
+![image-20190615142634153](ch8RelationalDatabaseDesign.assets/image-20190615142634153.png)
 
 ## MVD
 
