@@ -16,7 +16,7 @@ atomic attr:
 
 ## 2NF
 
-
+每个表必须有且仅有一个数据元素为主关键字(Primary key),其他数据元素与主关键字一一对应 (实体完整性)
 
 ## FD: function dependency
 

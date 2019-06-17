@@ -31,3 +31,4 @@ $$
 $$
 Π_{ID, name}((student⋈takes)÷Π_{course\_id}(σ_{_{dept\_name='SE'}}(course)))
 $$
+
