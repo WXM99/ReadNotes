@@ -46,6 +46,8 @@ Tomcat是Apache基金会下的另一个项目, Apache HTTP Server相比，Tomcat
 
 ### **Servlet的调用过程**
 
+![image-20190619222652826](review.assets/image-20190619222652826.png)
+
 - 1.客户端通过发送请求给Tomcat，Tomcat发送客户端的请求页面给客户端。
 - 2.用户对请求页面进行相关操作后将页面提交给Tomcat,Tomcat将其封装成一个HttpRequest对象，然后对请求进行处理,。
 - 3.Tomcat截获请求，根据action属性值查询xml文件中对应的servlet-name，再根据servlet-name查询到对应的java类（**如果是第一次，Tomcat则会将servlet编译成java类文件，所以如果servlet有很多的话第一次运行的时候程序会比较慢**）。
@@ -517,6 +519,20 @@ Step 2: 父组件传递参数用prop, 不要用state (state和prop的数据特�
 
 ## ORM
 
+### Hibernate 
+
+**Hibernate是一种ORM框架，全称为 Object_Relative DateBase-Mapping**，在Java对象与关系数据库之间**建立某种映射，以实现直接存取Java对象**
+
+在介绍Hibernate的时候，说了**Hibernate是一种ORM的框架**。那什么是ORM呢？**ORM是一种思想**
+
+- O代表的是Objcet
+- R代表的是Relative
+- M代表的是Mapping
+
+ORM->对象关系映射....ORM关注是**对象与数据库中的列的关系**
+
+![image-20190619221539910](review.assets/image-20190619221539910.png)
+
 实体模型表现映射成为数据库关系模型 (数据库与应用抽象方式不一样, ORM将数据库数据模型映射为OO的. 减少代码负担)
 
 – Advantages: 
@@ -550,7 +566,9 @@ Step 2: 父组件传递参数用prop, 不要用state (state和prop的数据特�
 
 主要是用于统一不同体系整合不同持久化实现技术的一层封装,用于统筹和转化来自不同方面的数据,一一个统一的标准和格式对外提供.
 
-## 分布式存储的问题
+陈老师说也能用成缓存
+
+![image-20190619215710553](review.assets/image-20190619215710553.png)
 
 
 
@@ -676,3 +694,29 @@ Access-Control-Allow-Credentials - 该字段可选，它的值是一个布尔值
 Cross-site request forgery
 
 这个策略直接在请求里面加入了一个只有真正在访问 ebook.com 的用户才知道的一个token，服务端只有拿到了正确的token才会真正执行这个请求。
+
+```java
+@Configuration
+public class CrossOriginConfig {
+
+    @Bean
+    CorsConfiguration buildConfig() {
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+
+        corsConfiguration.addAllowedOrigin("*");
+        corsConfiguration.addAllowedHeader("*");
+        corsConfiguration.addAllowedMethod("*");
+        corsConfiguration.setAllowCredentials(true);
+        return corsConfiguration;
+    }
+
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", buildConfig());
+        return new CorsFilter(source);
+    }
+}
+```
+
