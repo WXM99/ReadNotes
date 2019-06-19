@@ -310,3 +310,49 @@ Java RMI 指的是远程方法调用 (Remote Method Invocation)。它是一种�
 3. **第三步：**爱丽丝确认数字证书的有效性，然后生成一个新的**随机数**(Premaster secret)，然后使用数字证书中的公钥，加密这个随机数，发给鲍勃。
 4. **第四步：**鲍勃使用自己的私钥，获取爱丽丝发来的**随机数**(即Premaster secret)；(第三、四步就是非对称加密的过程了)
 5. **第五步：**爱丽丝和鲍勃通过约定的加密方法(通常是[AES算法](https://zh.wikipedia.org/wiki/高级加密标准))，使用前面三个随机数，生成**对话密钥**，用来加密接下来的通信内容；
+
+## 关于跨域请求
+
+https://www.jianshu.com/p/f880878c1398
+
+https://segmentfault.com/a/1190000015597029
+
+### 跨域是什么？
+
+浏览器的同源策略如下：
+
+![同源策略](review.assets/image-same-origin.PNG)
+
+Reference: https://developer.mozilla.org/zh-CN/docs/Web/Security/Same-origin_policy
+
+### 为什么要有这个策略？
+
+用户访问了ebook.com ，中途又去访问了A网站。A网站的脚本里面特意写了一段代码去访问ebook.com的一个接口，比如POST一下 ebook.com/buybook ，这次POST又带上了cookie，这样的话用户就在不知情的情况下买了书。这个攻击叫CSRF攻击。
+
+### 怎么解决？
+
+浏览器不让你发这个请求。发的话也要符合一定的基本法（有两种）。
+
+### 基本法的要点
+
+#### 基本法一 - CORS Header
+
+( 摘自 https://www.jianshu.com/p/f880878c1398 )
+
+Access-Control-Allow-Origin - 响应头部中可以携带这个头部表示服务器允许哪些域可以访问该资源
+
+Access-Control-Allow-Methods - 该头部字段用于预检请求的响应，指明实际请求所允许使用的HTTP方法
+
+Access-Control-Allow-Headers - 该头部字段用于预检请求的响应，指明了实际请求中允许携带的首部字段。
+
+Access-Control-Max-Age - 该头部字段用于预检请求的响应，指定了预检请求能够被缓存多久
+
+Access-Control-Allow-Credentials - 该字段可选，它的值是一个布尔值，表示是否允许发送Cookie。
+
+有些请求，比如GET和POST，是简单请求，浏览器会直接发送这个请求，但如果响应头里面没有Access-Control-Allow-Origin或者Access-Control-Allow-Origin的值和发这个请求的源不一样的话浏览器就会拦截这个响应并报错。
+
+还有些复杂请求，会先做一次预检（就是上面的预检请求），通过的话再发真正请求。
+
+#### 基本法二 - CSRF Token
+
+这个策略直接在请求里面加入了一个只有真正在访问 ebook.com 的用户才知道的一个token，服务端只有拿到了正确的token才会真正执行这个请求。
