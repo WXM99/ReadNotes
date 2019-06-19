@@ -50,7 +50,7 @@ Tomcat是Apache基金会下的另一个项目, Apache HTTP Server相比，Tomcat
 
 - 1.客户端通过发送请求给Tomcat，Tomcat发送客户端的请求页面给客户端。
 - 2.用户对请求页面进行相关操作后将页面提交给Tomcat,Tomcat将其封装成一个HttpRequest对象，然后对请求进行处理,。
-- 3.Tomcat截获请求，根据action属性值查询xml文件中对应的servlet-name，再根据servlet-name查询到对应的java类（**如果是第一次，Tomcat则会将servlet编译成java类文件，所以如果servlet有很多的话第一次运行的时候程序会比较慢**）。
+- 3.Tomcat截获请求，根据action属性值查询xml文件中对应的servlet-name，再根据servlet-name查询到对应的java类（如果是第一次，Tomcat则会将servlet编译成java类文件，所以如果servlet有很多的话第一次运行的时候程序会比较慢）。
 - 4.Tomcat实例化查询到的java类，**注意该类只实例化一次**。
 - 5.调用java类对象的service()方法（如果不对service()方法进行重写则根据提交的方式来决定执行doPost()方法还是doGet()方法）。
 - 6.通过request对象取得客户端传过来的数据，对数据进行处理后通过response对象将处理结果写回客户端。
@@ -69,7 +69,7 @@ Servlet本身是无状态的，**一个无状态的Servlet是绝对线程安全�
 
 ## Ajax
 
-**A**synchronous***J***avascript***+X***ML
+**A**synchronous**J**avascript + **X**ML
 
 异步: 向服务器发送请求的时候，我们不必等待结果，而是可以同时做其他的事情，等到有了结果我们可以再来处理这个事
 
@@ -243,7 +243,10 @@ indexed Database API，简称为`indexedDB`，是在浏览器中保存结构化�
 
 ## Session & Redis
 
+使用第三方仓储Redis来实现集群session管理
 
+- 可以非常方便的扩展Cookie和自定义Session相关的Listener，Filter。
+- 可以很方便的与Spring Security集成，增加诸如findSessionsByUserName，rememberMe，限制同一个账号可以同时在线的Session数（如设置成1，即可达到把前一次登录顶掉的效果）等等
 
 ## JWT & Session
 
@@ -489,13 +492,7 @@ JWT通过将数据保留在客户端的方式以空间换时间。你应用程�
 
 著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
 
-## JS let var
-
-let 函数作用域
-
-var 全局作用域
-
-## ES5 =>
+## ES5
 
 https://juejin.im/post/5d0839b1f265da1bce3dd1f7#heading-5
 
@@ -510,6 +507,10 @@ https://juejin.im/post/5d0839b1f265da1bce3dd1f7#heading-5
 箭头函数的this取值，规则非常简单，因为this在箭头函数中，可以看做一个普通变量。
 
 箭头函数没有自己的this值，箭头函数中所使用的this都是来自函数作用域链，它的取值遵循普通普通变量一样的规则，在函数作用域链中一层一层往上找。
+
+let 函数作用域
+
+var 全局作用域
 
 ## 前端框架
 
@@ -735,3 +736,23 @@ public class CrossOriginConfig {
 ```
 
 csrf-token的发放是在具体有合法请求的页面，没有相应请求的页面请不要发放csrf-token，以免被盗取。
+
+## 数据库中实现继承关系
+
+### 1. Table per class
+
+![image-20190619233807448](review.assets/image-20190619233807448.png)
+
+每个类一张表, 每张表拥有类的全部属性, 但是其ID在一个域内
+
+### 2. Single table
+
+![image-20190619232519576](review.assets/image-20190619232519576.png)
+
+所有类塌缩成一个具有所有属性的表
+
+### 3. Joined table
+
+![image-20190619234236526](review.assets/image-20190619234236526.png)
+
+没每个类一张表维持pk可特殊属性, 另有一张表维护所有的pk和公共属性
