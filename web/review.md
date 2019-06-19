@@ -571,6 +571,32 @@ ORM->对象关系映射....ORM关注是**对象与数据库中的列的关系**
 - 高计算过程偏向于放进数据库内置的聚集函数效率高
 - 底层数据库有变迁的需求, 上层代码不需要改变
 
+### 懒加载和急加载
+
+如果是EAGER，那么表示取出这条数据时，它关联的数据也同时取出放入内存中 
+
+如果是LAZY，那么取出这条数据时，它关联的数据并不取出来，在同一个session中，什么时候要用，就什么时候取(再次访问数据库)。 
+
+但是，在session外，就不能再取了。用EAGER时，因为在内存里，所以在session外也可以取。 
+
+一般只在一边设Eager，JPA接口默认为一对多为Lazy，多对一为Eager，但是Hibernate反向工程生成Entity时，多对一为Lazy，需要手动改为Eager。 
+
+而两边都设Eager，那么代码中取一条记录时，会发2次SQL。
+
+```java
+<class name="com.neusoft.entity.User" table="user" lazy="true">
+  ||
+//关联的实体对象通常是懒加载
+@ManyToMany(fetch = FetchType.LAZY,mappedBy = "participants")
+```
+
+关联的实体对象通常是懒加载
+--------------------- 
+作者：ganyouxian 
+来源：CSDN 
+原文：https://blog.csdn.net/u010082453/article/details/43339031 
+版权声明：本文为博主原创文章，转载请附上博文链接！
+
 ## XML JSON YAML
 
 - XML: 与JAVA联系密切, 和数据库联系密切，相应的库较多。
