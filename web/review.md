@@ -41,7 +41,7 @@ Tomcat是Apache基金会下的另一个项目, Apache HTTP Server相比，Tomcat
   - 根据req生成HTTPServletResponse对象, 传递给Servlet处理
   - 将Servlet中HTTPServletResponse对象的生成内容返回给浏览器
 - 常见的做法是: 
-  - 动静态资源分离(Nginx + Tomcat)
+  - 动静态资源分离(Nginx + Tomcat)这个地方需要把jar包里面的一些文件与jar进行分离，让这些在classpath下的内容“挂载”在某文件目录下，在nginx层级上对这些静态文件进行代理
   - 负载均衡: Tomcat实例水平扩展, Nginx分发请求
 
 ### **Servlet的调用过程**
@@ -78,6 +78,12 @@ Servlet本身是无状态的，**一个无状态的Servlet是绝对线程安全�
 
 适配IE
 
+## websocket
+
+websocket主要解决的问题是一次通信连接，保持长时间的通信，从而取代掉轮询机制。我们会发现协议的请求头会存在一些不同，强调需要使用H5的websocket协议
+
+轮询的不好之处在于，每一次询问内容不仅内容不一定有更新，且需要在每一次建立HTTP的连接，这是非常消耗资源的。
+
 ## CDN
 
 A **content delivery network** or **content distribution network** (**CDN**) is a geographically distributed network of [proxy servers](https://en.wikipedia.org/wiki/Proxy_server) and their [data centers](https://en.wikipedia.org/wiki/Data_center). The goal is to provide high availability and high performance by distributing the service spatially relative to end-users. 
@@ -105,11 +111,11 @@ https://www.awaimai.com/2596.html
 
    Spring 启动时会把所需的类实例化成对象，如果需要依赖，则先实例化依赖，然后实例化当前类。
 
-   **类的实例化、依赖的实例化、依赖的传入**都交由 Spring Bean 容器控制，
+   **类的实例化、依赖的实例化、依赖的传入**都交由 Spring Bean 容器控制，当存在多个类的实现的时候，需要使用qualifier注解定义如何加载，或者在配置文件中写好。
 
 3. 我们的应用程序由一个个bean构成
 
-   **Bean容器**，或称spring ioc容器，主要用来管理对象和依赖，以及依赖的注入
+   **Bean容器**，或称spring IoC容器，主要用来管理对象和依赖，以及依赖的注入
 
    bean是一个**Java对象**，根据bean规范编写出来的类，并由bean容器生成的对象就是一个bean。
 
@@ -146,6 +152,8 @@ Service的主进程要干什么?
 
 在NodeJS中，我们需要手动定义自己的路由
 
+NodeJS 异步单线程，对于CPU密集型请求不如java多线程，I/O密集型性能还可以。
+
 ## LAMP
 
 - **L**inux，操作系统
@@ -161,6 +169,8 @@ Service的主进程要干什么?
 
 Bridge: 解耦操作对象和操作方法
 
+强调我们将我们请求的url path，即资源所在，与我们要对资源的操作进行分离。使用HTTP中的method进行描述。
+
 ## TCP connect&disconnect
 
 ![image-20190618155904706](review.assets/image-20190618155904706.png)
@@ -173,7 +183,7 @@ https://segmentfault.com/a/1190000004743454
 
 security expire httponly path domain 
 
-**Cookie是一小段文本信息，伴随着用户请求在 Web 服务器和浏览器之间传递。**它存储于访问者的计算机中，每当同一台计算机通过浏览器请求某个页面时，就会发送这个 cookie。
+Cookie是一小段文本信息，伴随着用户请求在 Web 服务器和浏览器之间传递。它存储于访问者的计算机中，每当同一台计算机通过浏览器请求某个页面时，就会发送某些相对应的cookie，当然ajax里面你要写好是否携带cookie，在nginx服务器层级上也可以检查是否携带cookie否则不予将流量导向服务。
 
 首先声明，它是「浏览器」提供的一种机制，它将 ﻿document 对象的 cookie 属性提供给 JavaScript。可以使用JavaScript来创建和取回 cookie 的值，因此我们可以通过`document.cookie`访问它。
 
@@ -201,9 +211,13 @@ cookie是存于用户硬盘的一个文件，这个文件通常对应于一个�
 
 3、web存储机制
 
-web storage，包括两种：`sessionStorage` 和 `localStorage`，前者严格用于一个浏览器会话中存储数据，因为数据在浏览器关闭后会立即删除；后者则用于跨会话持久化地存储数据。
+web storage，包括两种：`SessionStorage` 和 `LocalStorage`，前者严格用于一个浏览器会话中存储数据，因为数据在浏览器关闭后会立即删除；后者则用于跨会话持久化地存储数据，我们在使用vuex的时候可以选择将vuex中的数据存储在cookie or SessionStorage or LocalStorage中。
+
+localStorage可以存储一些脚本再用户本地，在调用tensorflow.js运行模型是可以我们的模型参数将会存储在localStorage中方便用户下次使用。
 
 缺点：IE不支持 SessionStorage，低版本IE ( IE6, IE7 ) 不支持 LocalStorage，并且不支持查询语言
+
+
 
 4、indexedDB
 
@@ -427,7 +441,7 @@ JWT签名旨在防止在客户端被篡改，但也可以对其进行加密，�
 
 RESTful API的原则之一是它应该是无状态的，这意味着当发出请求时，总会返回带有参数的响应，不会产生附加影响。用户的认证状态引入这种附加影响，这破坏了这一原则。保持API无状态，不产生附加影响，意味着维护和调试变得更加容易。
 
-另一个挑战是，由一个服务器提供API，而实际应用程序从另一个服务器调用它的模式是很常见的。为了实现这一点，我们需要启用跨域资源共享（CORS）。Cookie只能用于其发起的域，相对于应用程序，对不同域的API来说，帮助不大。在这种情况下使用JWT进行身份验证可以确保RESTful API是无状态的，你也不用担心API或应用程序由谁提供服务。
+另一个挑战是，由一个服务器提供API，而实际应用程序从另一个服务器调用它的模式是很常见的。为了实现这一点，我们需要启用跨域资源共享（CORS）。Cookie只能用于其发起的域，相对于应用程序，对不同域的API来说，帮助不大。在这种情况下使用JWT进行身份验证可以确保RESTful API是无状态的，你也不用担心API或应用程序由谁提供服务。(给下游服务传递一些信息)
 
 ##### 性能
 
@@ -457,7 +471,7 @@ JWT通过将数据保留在客户端的方式以空间换时间。你应用程�
 
 ##### 实效性
 
-此外，无状态JWT的实效性相比session太差，只有等到过期才可销毁，而session则可手动销毁。
+此外，无状态JWT的实效性相比session太差，只有等到过期了才能销毁（存储在用户端，用户可能会copy走，复制在另外的请求里面，在有效时间里面也是允许的，所以我们只是删去cookie是无用的），而session则可手动销毁。
 
 例如有个这种场景，如果JWT中存储有权限相关信息，比如当前角色为 admin，但是由于JWT所有者滥用自身权利，高级管理员将权利滥用者的角色降为 user。但是由于 JWT 无法实时刷新，必需要等到 JWT 过期，强制重新登录时，高级管理员的设置才能生效。
 
@@ -542,8 +556,8 @@ Step 2: 父组件传递参数用prop, 不要用state (state和prop的数据特�
 
 ## XML JSON YAML
 
-- XML: 与JAVA联系密切, 和数据库联系密切
-- JSON: 和js联系紧密, 文件小(no tags)
+- XML: 与JAVA联系密切, 和数据库联系密切，相应的库较多。
+- JSON: 和js联系紧密, 文件小(no tags)，相应的库较多。
 - YAML: 精简, 主要用为配置文件. 在网络传输不常用. 常用在运维的配置文件中. 格式简单, 用空格表示层级.
 
 ## DAO
@@ -676,3 +690,5 @@ Access-Control-Allow-Credentials - 该字段可选，它的值是一个布尔值
 Cross-site request forgery
 
 这个策略直接在请求里面加入了一个只有真正在访问 ebook.com 的用户才知道的一个token，服务端只有拿到了正确的token才会真正执行这个请求。
+
+csrf-token的发放是在具体有合法请求的页面，没有相应请求的页面请不要发放csrf-token，以免被盗取。
