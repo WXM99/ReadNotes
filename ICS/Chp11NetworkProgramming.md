@@ -21,7 +21,6 @@ Transaction in CS:
 ![image-20190510202705587](Chp11NetworkProgramming.assets/image-20190510202705587.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>CS transaction</h2> </div>
-
 客户端和服务器都只是**进程**, 不是物理主机
 
 ## 2. Networks
@@ -33,7 +32,6 @@ Transaction in CS:
 ![image-20190525094133781](Chp11NetworkProgramming.assets/image-20190525094133781.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>网络主机结构</h2> </div>
-
 ### 物理层面上, 网络由地理位置组织层级
 
 - 最低层级 LAN (Local Area Network)
@@ -41,8 +39,7 @@ Transaction in CS:
   ![image-20190511001119235](Chp11NetworkProgramming.assets/image-20190511001119235.png)
 
   <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>Ethernet Segment</h2> </div>
-
-  - 实现技术通常是Ethernet.
+- 实现技术通常是Ethernet.
   - 一个Ethernet Segment包括电缆和一个hub.
   - 每个电缆等带宽, 连结在一个小区域内的每个主机的adaptor到hub端口
   - hub不区分端口, 将接受到的数据复制广播到其他所有端口
@@ -52,24 +49,22 @@ Transaction in CS:
     - frame包括header: 识别源, 目和长度
     - payload: 实际的有效数据荷载
     - 任何host的adaptor都可见, 只有目实际读取
-
+  
 - 次层级 Bridged Ethernet
 
   ![image-20190525094207945](Chp11NetworkProgramming.assets/image-20190525094207945.png)
 
   <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>Bridged Ethernet</h2> </div>
-
-  - 多个Ethernet segment可以通过bridge连接为较大的局域网
+- 多个Ethernet segment可以通过bridge连接为较大的局域网
   - bridge利用分配算法热更新可达的端口
   - p2p的在端口之间传送frame
-
+  
 - 高层级 Router Internet
 
   ![image-20190525094223392](Chp11NetworkProgramming.assets/image-20190525094223392.png)
 
   <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'> A small internet </h2> </div>
-
-  - 多个不兼容的局域网通过router计算机形成互联网
+- 多个不兼容的局域网通过router计算机形成互联网
   - 每个router对其每个连接上的网络都有一个adaptor(port)
   - router也能连接高速的p2p的电话连接, 即WAN(Wide-Area Network)
   - 一般地, router连接LAN和WAN来构建互联网络
@@ -97,7 +92,6 @@ Transaction in CS:
 ![image-20190525094416320](Chp11NetworkProgramming.assets/image-20190525094416320.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>data travel in internet. <br> PH: internet package header; FH1: frame header for LAN1</h2> </div>
-
 1. hostA运行一个syscall, 将数据从VM复制到kernel buffer
 
 2. hostA的协议软件在数据前附加PH和FH1, 合并创建LAN1 frame. 实现两层封装
@@ -125,7 +119,6 @@ Transaction in CS:
 ![image-20190514223059517](Chp11NetworkProgramming.assets/image-20190514223059517.png)
 
 <div style='background: #579;'><h2 style=' color: #fff; text-align: center; font-size: 20px; margin-top: 0px'>internet C/S frame </div>
-
 - 因特网(Internet) host运行TCP/IP协议
   - TCP: Transmission Control Protocol
   - IP: Internet Protocol
