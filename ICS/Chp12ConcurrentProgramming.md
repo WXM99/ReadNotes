@@ -240,6 +240,76 @@ int pthread_once(pthread_once_t *once_control,
 
 ### 3.8 A Concurrent Server Based on Threads
 
+主线程不断等待并Accept链接请求, 创建对等线程服务请求
+
+```c
+int main(int argc, char **argv){
+    int listenfd, *connfdp
+    socklen_t clientlen;
+    struct sockaddr_in clientaddr;
+    pthread_t tid;
+
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s <port>\n", argv[0]);
+        exit(0);
+    }
+    listenfd = open_listenfd(argv[1]);
+    while (1) {
+        clientlen = sizeof(clientaddr);
+        connfdp = Malloc(sizeof(int));
+        *connfdp = Accept(listenfd,
+                          (SA *)&clientaddr,
+                          &clientlen);
+        Pthread_create(&tid, NULL, thread, connfdp);
+    }
+}
+
+/* thread routine */
+void *thread(void *vargp)
+{
+    int connfd = *((int *)vargp);
+
+    Pthread_detach(pthread_self());
+    Free(vargp);
+    echo(connfd);
+    Close(connfd);
+    return NULL;
+}
+```
+
+- 调用``pthread_create``时, 通过connfdp(malloc的堆空间)将已连接的descriptor传递给线程
+
+  - 不能使用栈空间, 如
+
+    ```c
+    int main() {
+    	...
+      while(1){
+    	  int connfd = Accept(listenedfd, ...);
+    		Pthread_create(&tid, NULL, thread, &connfd);
+        ...
+      }
+      ...
+    }
+    
+    void *thread(void *vargp){
+      int connfd = *((int *)vargp);
+      ...
+    }
+    ```
+
+    这种参数传递引起了例程中的参数赋值(line12)和主线程accept(line3)之间的竞争
+
+    - 赋值语句在下一次accept之前完成, 例程中的connfd为正确值.
+    - 赋值语句在下一次(几次)accept之后完成, 则例程中得到是那一次的connfd
+      - 导致两个线程在一个descriptor输入和输出
+
+    accept得到的descriptor要求放到属于其自己的动态分配的堆空间中.
+
+  - 主线程没有显式回收线程, 线程例程中必须分离自身, 在终止时避免内存泄漏. ``pthread_detach(pthread_self())``
+
+  - 例程负责释放主线程中分配的参数占用的堆内存. `` free(vargp)``
+
 ## 4. Shared Variables in Threads Programs
 
 ## 5. Synchronizing Threads with Semaphores
