@@ -312,6 +312,86 @@ void *thread(void *vargp)
 
 ## 4. Shared Variables in Threads Programs
 
+- 线程的基础内存模型
+- 变量实例如何映射到内存
+- 线程实例引用这些示例
+
+![image-20190622164258013](Chp12ConcurrentProgramming.assets/image-20190622164258013.png)
+
+### 4.1 Threads Memory Model
+
+- 一组线程运行在一个进程的上下文中, 共享
+  - 虚拟地址空间
+  - 代码段
+  - 读写数据段
+  - 堆空间
+  - 共享库代码
+  - 打开的文件集合
+- 每个线程有自己的独立线程上下文, 包括
+  - 线程ID
+  - 栈
+  - 栈指针
+  - PC
+  - CC
+  - regs
+- 寄存器从不共享, 内存总是共享
+- 线程栈的内存模型:
+  - 被保存在虚拟地址的栈区域中
+  - 通常由对应的线程独立访问
+    - 线程栈不对其他线程设防, 可以读写其他栈的任何部分
+
+```c
+#include "csapp.h"
+#define N 2
+void *thread(void *vargp);
+
+char **ptr; 
+/* global variable */
+int main()
+{
+	int i;
+ 	pthread_t tid;
+  char *msgs[N] = {
+ 	  "Hello from foo",
+ 	  "Hello from bar"
+	};
+
+ 	ptr = msgs;
+ 	for (i = 0; i < N; i++)
+ 	   Pthread_create(&tid, NULL, thread, (void *)i);
+ 	Pthread_exit(NULL);
+}
+
+void *thread(void *vargp)
+{
+ 	int myid = (int)vargp;
+ 	static int cnt = 0;
+ 	printf("[%d]:%s(cnt=%d)\n", myid, ptr[myid], ++cnt);
+}
+```
+
+line26表现了对等线程通过全局变量ptr简介访问了主线程栈上的内容(msgs)
+
+### 4.2 Mapping Variables to Memory
+
+多线程C程序根据变量的存储类型映射到虚拟内存
+
+- 全局变量Global variables: 虚存的read/write区域只包含每个全局变量的一个实例, 任何线程都可以引用
+
+  (如line5 ptr)
+
+- 本地自动变量Local automic variables: 运行时, 没个线程都在自己的运行时栈上实例化本地自动变量. 多线程则多次实例化.
+
+  如本地变量myid(line24)有两个实例: 0号对等线程和1号对等线程的栈上. 分别记为myid.p0和myid.p1
+
+- 本地静态变量 Local static variables: 同全局变量一样, 实例化在虚存的read/write区域
+
+  如cnt(line25)
+
+### 4.3 Shared Variables
+
+
+
 ## 5. Synchronizing Threads with Semaphores
 
 ## 6. Using Threads for Parallelism
