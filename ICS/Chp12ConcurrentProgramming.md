@@ -207,7 +207,7 @@ int pthread_join(pthread_t tid, void **thread_return);
 - joinable的线程可以被其他线程杀死或者回收. 
   - 在线程被回收之前, 其内存资源不释放
 - detached线程不能被杀死和回收
-  - 资源在其终止时有系统自动释放
+  - 资源在其终止时由系统自动释放
 - 默认线程是joinable的, 为了避免内存泄漏
   - 所有joinable的线程都要被其他线程显式地回收
   - 或者调用``pthread_detach``函数被分离
@@ -527,12 +527,460 @@ int sem_post(sem_t *s); /* V(s) */
   - 任何时间点, 不可能有多个线程在都在Critical region(L.U.S.)执行, semaphore保证了C.R.访问的互斥
 
 ```c
-  
+#include <semaphore.h>
+volatile long cnt = 0; 
+sem_t mutex;
+/* in main thread */
+...
+	Sem_init(&mutex, 0, 1);
+...
+/* in critical region */
+...
+  for(i = 0; i < niters; i++) {
+    P(&mutex);
+    cnt++;
+    V(&mutex);
+  }
+...
 ```
 
+### 5.4 Using Semaphores to Schedule Shared Resource
 
+一个线程用semaphore来通知另一个线程, 程序状态中某个条件已经成立了
+
+#### Producer-Consumer Problem
+
+![image-20190623153611039](Chp12ConcurrentProgramming.assets/image-20190623153611039.png)
+
+Producer和Consumer共享有n个slots的buffer.
+
+- Producer反复生成新的item, 插入到buffer中
+- Consumer不断地从buffer取出这些item, 然后使用
+- 插入和取出items都涉及更新共享变量, 所以必须保证对buffer的访问是互斥的
+- 还需要调度对buffer的访问
+  - buffer为满的话, Producer必须等待一个slot为空
+  - buffer为空的话, Consumer必须等待一个item到来
+
+##### SBUF Package
+
+sbuf_t
+
+```c
+struct {
+  int *buf;     /* Buffer array */
+  int n;	      /* Maximum number of slots */
+  int front;    /* buf[(front+1)%n] is the first item */
+  int rear;	    /* buf[rear%n] is the last item */
+  sem_t mutex;  /* protects accesses to buf */
+  sem_t slots;  /* Counts available slots */
+  sem_t items;  /* Counts available items */
+} sbuf_t;
+```
+
+- items存放在动态分配的``n``项整数数字``buf``中
+
+- ``front``和``rear``是数组第一项和最后一项的索引
+
+- 三个Semaphores``mutex`` ``slots`` ``items``同步对buffer的访问
+
+  - ``mutex``: 提供互斥buffer访问
+  - ``slots``: 记录空slots数量
+  - ``items``: 记录可用items的数量
+
+- sbuf_init
+
+  ```c
+  void sbuf_init(sbuf_t *sp, int n)
+  {
+      sp->buf = Calloc(n, sizeof(int));
+      /* Buffer holds max of n items */
+      sp->n = n;
+      /* Empty buffer iff front == rear */    
+      sp->front = sp->rear = 0;		
+      /* Binary semaphore for locking */
+      Sem_init(&sp->mutex, 0, 1);
+      /* Initially, buf has n empty slots */
+      Sem_init(&sp->slots, 0, n);	
+      /* Initially, buf has zero data items */
+      Sem_init(&sp->items, 0, 0);	
+  }
+  ```
+
+  - 用``calloc``为buffer分配堆内存
+  - ``front`` ``rear``设置为0表示空buffer
+  - 为Semaphores赋初值: 1, n, 0
+
+- sbuf_def
+
+  ```c
+  void sbuf_define(sbuf_t *sp) 
+  {
+    Free(sp->buf);
+  }
+  ```
+
+  - 使用完buffer后释放
+
+- sbuf_insert
+
+  ```c
+  void sbuf_insert(sbuf_t *sp, int item)
+  {
+      /* Wait for available slot */
+      P(&sp->slots);
+      /*Lock the buffer */
+      P(&sp->mutex);
+      /*Insert the item */
+      sp->buf[(++sp->rear)%(sp->n)] = item;
+      /* Unlock the buffer */
+      V(&sp->mutex);
+      /* Announce available items*/
+      V(&sp->items);
+  }
+  ```
+
+  - 向Buffer中添加item
+    - 等待一个可用的slot
+    - 加互斥锁
+    - 添加项目到Buffer队尾(或者之前的空余)
+    - 解除互斥锁
+    - 宣布加入的item可用
+
+- sbuf_remove
+
+  ```c
+  int sbuf_remove(sbuf_t *sp)
+  {
+      int item;
+      /* Wait for available item */
+      P(&sp->items);
+      /*Lock the buffer */			
+      P(&sp->mutex);
+      /*Remove the item */
+      item = sp->buf[(++sp->front)%(sp->n)];
+      /* Unlock the buffer */
+      V(&sp->mutex);			
+      /* Announce available slot*/ 	
+      V(&sp->slots);			
+      return item;
+  }
+  ```
+
+  - 向buffer中取出一个item
+    - 等待一个可用的item
+    - 加互斥锁
+    - 从Buffer的front位取出item
+    - 解除互斥锁
+    - 宣布新的空slot可用
+
+#### Readers-Writers Problem
+
+互斥问题的概括: 并发线程访问一个共享对象 (主存中的数据结构, 数据库)
+
+有的线程只读对象(reader), 有的只修改对象(writer)
+
+Writer补习拥有对象的独占反问权, Reader可以和其他reader共享对象.
+
+- 第一类RW问题: 读者优先, 不会有writer阻塞reader
+- 第二类RW问题: 写者优先, 写者尽快完成写操作, 可以阻塞reader
+
+```c
+int readcnt;    /* Initially 0 */
+sem_t mutex, w; /* Both initially 1 */
+
+void reader(void) {
+  while (1) {
+    P(&mutex);
+    readcnt++;
+    if (readcnt == 1) /* First in */
+      P(&w);
+    V(&mutex);
+    /* Reading happens here */
+    P(&mutex);
+    readcnt--;
+    if (readcnt == 0) /* Last out */
+      V(&w);
+    V(&mutex);
+  }
+}
+void writer(void) 
+{
+  while (1) {
+    P(&w);
+    /* Writing here */ 
+    V(&w);
+  }
+}
+```
+
+- semaphore w 控制对共享对象的critical region的访问
+
+- mutex 保护对共享变量readcnt的访问
+
+- readcnt统计当前critical region中的reader数量
+
+- 当有writer进入critical region时,  对w加锁, 离开对w解锁, 保证writer的唯一性
+
+- 只有第一个reader进入critical region时, 才对w加锁, 最后一个reader离开才解锁
+
+  只要有一个reader在访问, 其他reader都可以忽略互斥锁w
+
+- 这种实现会导致starvation: reader不断到达会导致writer无限期等待
+
+- 上述的优先写是弱实现, 当多个写任务不断到达, 读任务无法开启
+
+### 5.5 A Concurrent Server Based on Prethreading
+
+![image-20190623212021461](Chp12ConcurrentProgramming.assets/image-20190623212021461.png)
+
+- Server由一个主线程和一组工作线程组成
+  - 主线程接收client的连接请求, 将建立连接的descriptor放入buffer
+  - 每一个worker thread反复从buffer中取出descriptor, 并服务. 之后等待下一个
+
+```c
+#include “csapp.h”
+#include “sbuf.h”
+#define NTHREADS  4
+#define SBUFSIZE  16
+ 
+sbuf_t sbuf ; 	/* shared buffer of connected descriptors */ 
+
+int main(int argc, char **argv)
+{
+    int i, listenfd, connfd;
+    sockelen_t clientlen ;  
+    struct sockaddr_storage clientaddr;
+    pthread_t tid;
+   
+    if (argc != 2) {
+        fprintf(stderr, “usage: %s <port>\n”, argv[0]) ;
+        exit(0);
+    }
+    listenfd = open_listenfd(argv[1]);
+    sbuf_init(&sbuf, SBUFSIZE);
+    for (i = 0; i < NTHREADS; i++)
+      	/* Create worker threads */
+        Pthread_create(&tid, NULL, thread, NULL);
+
+    while (1) {
+        clientlen =  sizeof(struct sockaddr_storage);
+        connfd = Accept (listenfd, 
+                         (SA *)&clientaddr,
+                         &clientlen);
+	      /* Insert connfd in buffer */
+        sbuf_insert(&sbuf, connfd);  
+    }
+}
+void *thread(void *vargp)
+{
+    Pthread_detach(pthread_self());
+    while (1) {
+      	/* Remove connfd from buffer */
+        int connfd = sbuf_remove(&sbuf);
+      	/* Service client */
+        echo_cnt(connfd);		
+        Close(connfd);
+    }
+}
+```
+
+- 主线程初始化sbuf
+- 主线程创建一组worker threads
+- 主线程循环处理请求, 建立连接, 并将连接后的descriptor放进sbuf中
+- worker threads从sbuf中取出一个descriptor, 服务关闭
+
+```c
+#include “csapp.h”
+ 
+static int byte_cnt;	/* byte counter */
+static sem_t mutex;	/* and the mutex that protects it */
+ 
+static void init_echo_cnt(void)
+{
+    Sem_init(&mutex, 0, 1);
+    byte_cnt = 0;
+}
+void echo_cnt(int connfd)
+{
+    int n; 
+    char buf[MAXLINE]; 
+    rio_t rio;
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+
+    Pthread_once(&once, init_echo_cnt);
+    Rio_readinitb(&rio, connfd);
+    while((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
+        P(&mutex);
+        byte_cnt += n;
+        printf(“server received %d(%d) byte on fd %d\n”, 
+               	n,byte_cnt, connfd);
+        V(&mutex);
+        Rio_writen(confd, buf, n);
+    }
+ }
+```
+
+从例程调用初始化到程序包的一般技术
+
+- 初始化byte_cnt计数器和mutex互斥锁
+  - 用SBUF和RIO包内的初始化函数
+  - 用pthread_once函数调用初始化函数
 
 ## 6. Using Threads for Parallelism
+
+![image-20190623220330432](Chp12ConcurrentProgramming.assets/image-20190623220330432.png)
+
+- 顺序程序: 一条逻辑流
+- 并发程序: 多条并发流
+  - 并行程序: 运行在多个处理器上的并发程序
+
+### Threads Closed-form Verifying
+
+主线程
+
+```c
+#include "csapp.h"
+#define MAXTHREADS 32
+
+void *sum_mutex(void *vargp);  /* Thread routine */
+
+/* Global shared variables */
+long gsum; 		/* Global sum */
+/* Number of elements summed by each thread */
+long nelems_per_thread;	
+sem_t mutex ;		/* Mutex to protect global sum */
+ 
+int main(int argc, char **argv)
+{
+	long i, nelems, log_nelems, nthreads, myid[MAXTHREADS];
+	pthread_t tid[MAXTHREADS];
+
+	/* Get input arguments */
+	if (argc != 3) {
+		printf("Usage: %s <nthreads> <log_nelems>\n", argv[0]); 	   
+    exit(0);
+	}
+ 	nthreads = atoi(argv[1]);
+	log_nelems = atoi(argv[2]);
+ 	nelems = (1L << log_nelems);
+ 	nelems_per_thread = nelems / nthreads;
+	sem_init(&mutex, 0, 1);
+
+ 	/* Create peer threads and wait for them to finish */
+ 	for (i = 0; i < nthreads; i++) {
+		myid[i] = i;
+		Pthread_create(&tid[i], NULL, sum_mutex, &myid[i]);
+	}
+ 	for (i = 0; i < nthreads; i++)
+ 		Pthread_join(tid[i], NULL);
+
+ 	/* Check final answer */
+ 	if (gsum != (nelems * (nelems-1))/2)
+		printf("Error: result=%ld\n", gsum);
+
+ 	exit(0);
+}
+```
+
+#### V1: 
+
+线程例程更新带有互斥锁mutex全局共享变量
+
+```c
+/* Thread routine for psum-mutex.c*/
+void *sum_mutex(void *vargp)
+{
+ 	int myid = *((int *)vargp); 		/* Extract the thread ID */
+ 	long start=myid * nelems_per_thread; /* Start element index */
+ 	long end = start + nelems_per_thread;	/* End element index */
+ 	long i;
+
+ 	for (i = start; i < end; i++) {
+		P(&mutex);
+    gsum += i ;		
+		V(&mutex);
+ 	}
+  return NULL;
+}
+```
+
+![image-20190623222742477](Chp12ConcurrentProgramming.assets/image-20190623222742477.png)
+
+- 单线程比多线程慢
+- 多核比单核慢
+  - PV同步操作在多核上开销很大
+
+#### V2:
+
+在例程中持有私有变量, 在例程中不需要互斥锁维护更新
+
+```c
+/* Thread routine for psum-array.c*/
+void *sum_array(void *vargp)
+{
+ 	int myid = *((int *)vargp); 		/* Extract the thread ID */
+ 	long start=myid * nelems_per_thread; /* Start element index */
+ 	long end = start + nelems_per_thread;	/* End element index */
+ 	long i;
+
+ 	for (i = start; i < end; i++) {
+		psum[myid] += i;
+ 	}
+  return NULL;
+}
+```
+
+![image-20190623223637466](Chp12ConcurrentProgramming.assets/image-20190623223637466.png)
+
+#### V3:
+
+减少内存引用
+
+```c
+/* Thread routine for psum-array.c*/
+void *sum_array(void *vargp)
+{
+ 	int myid = *((int *)vargp); 		/* Extract the thread ID */
+ 	long start=myid * nelems_per_thread; /* Start element index */
+ 	long end = start + nelems_per_thread;	/* End element index */
+ 	long i, sum = 0;
+
+ 	for (i = start; i < end; i++) {
+		sum += i;
+ 	}
+  psum[myid] = sum;
+  return NULL;
+}
+```
+
+![image-20190623223834420](Chp12ConcurrentProgramming.assets/image-20190623223834420.png)
+
+### Characterizing the Performance of Parallel Program
+
+![image-20190623232023975](Chp12ConcurrentProgramming.assets/image-20190623232023975.png)
+
+并行程序在每个核心上运行一个线程
+
+- Speedup加速比: S~p~ = T~1~ / T~p~
+
+  - p: 处理器核心数
+  - T~p~: 在p个核心上运行的时间
+  - Strong Scaling: 强扩展
+  - T~1~是顺序执行时间时, S~p~为绝对加速比
+  - T~1~是并行版在单核的运行时间时, S~p~为相对加速比
+    - 绝对加速比更优秀但是难以测量(需要单独的代码版本)
+
+- Efficiency效率: E~p~ = S~p~ / p = T~1~ / pT~p~
+
+  - Efficiency可以衡量由于并行化造成的开销
+
+  - 高效率说明实际工作时间更多, 同步和通信时间少
+
+    ![image-20190623234036593](Chp12ConcurrentProgramming.assets/image-20190623234036593.png)
+
+  - 效率超过90%可遇不可求, 因为具体的任务通常很难并行化
+
+- Weak Scaling弱扩展: 增加核心数的同事增加问题规模, 让每个核心工作量不变
 
 ## 7. Other Concurrency Issues
 
