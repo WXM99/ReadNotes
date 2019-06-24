@@ -1,6 +1,50 @@
 # CHP9 Visual Memory
 
-## 〇 Dynamic Memory Allocator
+系统中的进程共享CPU和Memory
+
+现代OS为了管理进程间的内存使用, 提供对主存的抽象 — VM虚拟内存
+
+- VM是硬件异常, 硬件地址翻译, 主存, 磁盘文件, 内核软件交互完成的
+- VM为每个进程提供大的, 一致的, 私有的地址空间
+- VM三个重要功能
+  - 作为磁盘内容在地址空间的高速缓存, 只保留活动区域, 根据需要IO
+  - 为每个进程提供一致的地址空间, 简化内存管理
+  - 保护每个进程的地址空间不被其他进程破坏
+- VM是系统操作的核心抽象
+- VM给予进程强大的能力, 包括创建和销毁chunk, 将chunk映射到磁盘文件, 与其他进程共享文件
+- VM暴露一些接口进行交互, 使用不当就会发生内存相关的错误(段错误)
+
+## 1. Physical and Virtual Addressing
+
+- 主存被组织成为一个由M个连续的Byte大小的单元组成
+
+  - 每个Byte都有唯一的物理地址(PA)
+  - 第一个Byte的地址为0, 紧接着1, 2, 3…
+
+- CPU可以通过物理地址访问主存, 即物理寻址Physical Addressing
+
+  - 当一条load指令发生时, CPU会生成一个有效的物理地址, 访问主存
+  - 主存读取特定位置, 特定长度, 通过MemoryBus传回给CPU的一个reg
+
+  ![image-20190624171802545](Chp9VisualMemory.assets/image-20190624171802545.png)
+
+  - 早起的计算机仍使用物理寻址
+
+- 虚拟寻址 Virtual Addressing
+
+  ![image-20190624172124088](Chp9VisualMemory.assets/image-20190624172124088.png)
+
+  - CPU通过生成一个虚拟地址访问主存
+  - 在VM送达到内存之前, 先被转换为适当的物理地址 (地址翻译 address translation)
+  - address translation需要CPU硬件和OS之间紧密合作
+  - CPU上具有专用硬件 Memory Management Unit, MMU利用主存中的Lookup table开动态翻译虚拟地址到物理地址
+  - Lookup table的内容是由OS管理的
+
+## 2. Address Spaces
+
+
+
+## 9 Dynamic Memory Allocator
 
 > 分配程序运行中需要的额外内存
 >
