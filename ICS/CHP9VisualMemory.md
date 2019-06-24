@@ -42,7 +42,273 @@
 
 ## 2. Address Spaces
 
+- 地址空间Address Space: 非负整数地址集合 {0, 1, 2, ...} 
+  - 整数连续 iff 线性地址空间
+- 虚拟地址空间: CPU从一个有N = 2^n^个地址的地址空间中生成虚拟地址 {0, 1, 2, …, N-1}
+  - 地址空间的大小由最大地址的位数描述
+  - 现代系统支持32位或者64位的虚拟地址空间
+- 物理地址空间: 对应于物理内存的M个Byte {0, 1, 2, … M-1}
+  - M不要求是2的幂
+  - 简化假设为M = 2^m^
+- 地址空间区分了数据对象和其属性
+  - 数据对象是对应的Byte的值
+  - 属性是其地址编号
+- 数据对象的属性推广: 
+  - 每个数据对象有多个独立的地址
+  - 每个地址都选自一个不同的地址空间
+- 主存中的每个字节都有一个
+  - 来自虚拟地址空间的虚拟地址
+  - 来自物理地址空间的物理地址
+- 常用的内存单位
+  - 2^10^ = 1K kilo
+  - 2^20^ = 1M mega
+  - 2^30^ = 1G giga
+  - 2^40^ = 1T tera
+  - 2^50^ = 1P peta
+  - 2^60^ = 1E exa
 
+## 3. VM as a Tool for Caching
+
+- VM被组织为一个由存放在磁盘上的N个连续Byte大小的单元组成的数组
+
+  - 每个Byte都有唯一的VMA作为数组索引
+  - 磁盘(低级储存)上的数据被分割成blocks, 作为与主存的传输单元
+
+- VM系统将VM分割, 称为Virtual Page. VP
+
+  - VP大小固定, 用来适配磁盘的block
+  - VP的大小P = 2^p^ Byte
+
+- 物理内存被分割为屋里页PP, 大小也是P byte. 也叫做Page Frame
+
+- 任意时刻, VP的集合可以划分为三个不想交子集
+
+  1. Unallocated: 
+
+     VM系统还没有分配或者创建的page. 没有数据与之关联, 不占用任何磁盘空间
+
+  2. Cached:
+
+     缓存的page. 对应的数据在物理内存中已分配了PP
+
+  3. Uncached: 
+
+     已经分配了但是物理内存中没有缓存的Pages
+
+  ![image-20190624194818187](Chp9VisualMemory.assets/image-20190624194818187.png)
+
+### 3.1 DRAM Cache Organization
+
+- SRAM cache代表CPU和Memory之间的L1L2L3
+- DRAM cache代表VM系统的缓存, 在主存中缓存VP
+- DRAM cache miss后会访问磁盘, 开销巨大. 导致了DRAM cache的特殊结构
+  - 巨大的VP: 4KB~2MB
+  - fully-associativity: 全相连, 1set1line. 任何VP都可以放置在任何PP中
+  - 更精密的淘汰算法
+  - 总是writeBack(passive). 不直写
+
+### 3.2 Page Tables
+
+- VMsys必须判定一个VP是否缓存在DRAM中somewhere
+
+  - 若存在, VMsys要知道这个VP存放在在哪个PP
+
+  - MIss, VMsys要判断VM的磁盘位置, 在PP中选择一个牺牲, 将这个VP从磁盘复制到DRAM替换牺牲页
+
+  - 这些功能由软硬件联合提供
+
+    - OS
+
+    - MMU的地址翻译硬件
+
+    - 物理内存中Page table数据结构
+
+      Page table将VP映射到PP. MMU进行VMA到PMA地址翻译时, 会读取页表
+
+      OS负责维护页表, 以及在Disk和DRAM之间传送页
+
+- Page Table: 一个Page Table Entry PTE的数组
+
+  ![image-20190624202626306](Chp9VisualMemory.assets/image-20190624202626306.png)
+
+  - 每个虚拟地址空间的VP都在Page Table中有一个固定位置的PTE
+  - PTE由一个valid bit和n位地址两个字段组成
+    - valid bit表明PTE对应VP是否缓存在DRAM中
+    - 如果设置了valid bit那么地址字段表示了对应的PP在DRAM中的起始位置, PP缓存了VP
+    - 如果没有设置valid bit
+      - 一个空地址表示VP还没有分配
+      - 非空地址为VP对应的磁盘起始位置
+
+### 3.3 Page Hits
+
+当CPU需要访问的VP是cached
+
+- MMU将虚拟地址作为引索来定位对应的PTE
+- MMU从内存中读取对应的PTE
+- MMU使用PTE中的物理内存地址(指向PP起始位置)构造数据的物理地址
+
+![image-20190624204228651](Chp9VisualMemory.assets/image-20190624204228651.png)
+
+### 3.4 Page Faults
+
+DRAM的cache miss称为page fault
+
+当CPU需要访问的数据所在的VP是Uncached
+
+- MMU从虚拟地址解析对应PTE索引
+- 从valid bit判断VP是 uncached
+- MMU触发一个page fault exception
+- exception调用内核的page fault exception handler的程序
+  - handler牺牲DRAM中的一个PP, 写回磁盘
+  - 修改牺牲PP对应的PTE
+  - 内核根据地质从磁盘复制对用内容到DRAM中的PP
+  - 更新访问的对应的PTE
+  - 内核返回
+- 重新执行导致page fault的指令
+- MMU按照page hit的方式读取数据
+
+![image-20190624205628820](Chp9VisualMemory.assets/image-20190624205628820.png)
+
+![image-20190624210917777](Chp9VisualMemory.assets/image-20190624210917777.png)
+
+### 3.5 Allocating Pages
+
+OS分配一个新的VP时, 更新对用PTE使其地址指向磁盘上的Page
+
+![image-20190624211038353](Chp9VisualMemory.assets/image-20190624211038353.png)
+
+### 3.6 Locality to Rescue Again
+
+- Virtual memory works because of locality
+- At any point in time, programs tend to access a set of active virtual pages called the **working set**.
+- Programs with better temporal locality will have smaller working sets
+- If (working set size < main memory size) 
+  - Good performance for one process after compulsory misses
+- If (working set sizes > main memory size ) 
+  - Thrashing*:* Performance meltdown where pages are swapped (copied) in and out continuously
+
+## 4. VM as a Tool for Memory Management
+
+- OS会为每个进程提供一个独立的page table
+
+  - 所以进程具有了独立的虚拟地址空间
+
+  - 多个VP也可能映射到一个共享的PP上
+
+    ![image-20190624212657572](Chp9VisualMemory.assets/image-20190624212657572.png)
+
+  - 一个VP在不同时间也会映射到不同的PP上
+
+    ![image-20190624212931550](Chp9VisualMemory.assets/image-20190624212931550.png)
+
+- 简化链接: 
+
+  - 独立的地址空间让每个进程的内存映像有相同的基本格式
+  - 不用考虑代码和数据实际存放在物理地址的位置
+  - 简化Linker的设计和竖线, 允许Linker生成exe. 并独立于物理内存中代码和数据的最终位置 
+
+- 简化加载:
+
+  - 将目标文件的.text和.data section加载到进程中
+  - Loader为代码和数据分配VP, 并标记为Uncached
+  - PTE指向目标文件的适当位置(磁盘上)
+  - Loader不会从磁盘复制任何数据到内存, 只有当每个VP被首次引用时, VMsys才会按需自动page in
+  - memory mapping: 将一组连续的VP映射到任意一个文件的任意位置
+
+- 简化共享:
+
+  - 独立地址空间为操作系统提供管理用户进程和自身之间共享数据的机制
+  - 每个进程自己的私有代码, 数据, 堆栈不和其他共享
+    - OS创建page table, 将对应的VP映射到不连续的PP
+  - 进程之间共享数据和代码借助于OS内核代码
+    - 将不同进程中引用库程序的代码VP映射到同一个PP, 使得对个进程共享一个代码副本
+
+- 简化内存分配:
+
+  - 进程请求额外的堆空间时
+  - OS分噢诶若干个连续VP并映射到物理内存中任意位置的相同数量的PP, 不是连续的
+
+## 5. VM as Tool for Memory Protection
+
+为操作系统提供手段来控制对内存的访问
+
+- 进程不可修改只读代码段
+- 进程不得读取和修改内核代码和数据结构
+- 进程不能读写其他进程的私有内存
+- 进程不允许修改与其他进程共享的VP
+  - 进程间通讯的系统调用除外
+
+对PTE添加额外的许可位来控制VP的访问权限
+
+![image-20190624222618969](Chp9VisualMemory.assets/image-20190624222618969.png)
+
+- 每个PTE中增加了三个许可位 permission bits
+  - SUP: 进程是否必须运行内核模式下才能访问的PP
+    - 内核模式可以访问所有PP, 用户模式只能访问SUP=0的PP
+  - READ: 进程有读PP的权限
+  - WRITE: 进程有写PP的权限
+- 违反权限的指令触发一般保护故障(general protection fault)
+  - 将控制传递给内核中的exception handler
+  - Linux shell称为segmentation fault
+
+## 6. Address Translation
+
+基本参数
+
+![image-20190624223857622](Chp9VisualMemory.assets/image-20190624223857622.png)
+
+![image-20190624224732853](Chp9VisualMemory.assets/image-20190624224732853.png)
+
+- 地址翻译: 
+  - 一个在N个元素的虚拟地址空间VAS中的元素
+  - 一个在M和元素的物理地址空间PAS中的元素
+  - 上二者之间的映射
+
+  MAP: VAS -> PAS ∪ ∅
+
+  - MAP(A) = 
+    - A’  iff 虚拟地址A出的数据在PAS的物理地址A’处
+    - ∅  iff 虚拟地址A处的数据不在物理内存中
+
+  ![image-20190624224559946](Chp9VisualMemory.assets/image-20190624224559946.png)
+
+- MMU利用page实现这种映射
+
+  ![image-20190624224452255](Chp9VisualMemory.assets/image-20190624224452255.png)
+
+  - CPU中存在一个控制寄存器 Page Table Base Register PTBR, 总指向当前进程的Page Table (物理地址)
+  - n位虚拟地址包含两部分
+    - p bits: Virtual Page Offset. VPO
+    - n-p bits: Virtual Page Number. VPN
+  - MMU利用VPN作为索引来选择PTE
+  - 将PTE中的Physical Page Number. PPN与虚拟地址的VPO相连接, 得到对应的物理地址
+  - PP和VP的大小相同, 所以PPO = VPO
+
+- Page hit的硬件执行
+
+  ![image-20190624225752050](Chp9VisualMemory.assets/image-20190624225752050.png)
+
+  1. CPU生成一个虚拟地址VA, 提交给MMU
+  2. MMU通过VA的VPN和PTBR得到PTE地址PTEA, 从Cache/Memory请求之
+  3. Cache/Memory返回PTE数据给MMU
+  4. MMU通过PTE地址段和VA的VPO构造物理地址PA, 并向Cache/Memory请求数据
+  5. Cache/Memory返回数据给CPU
+
+  Page hit全是由硬件(MMU)处理的
+
+- Page fault的处理过程
+
+  ![image-20190624230457078](Chp9VisualMemory.assets/image-20190624230457078.png)
+
+  Page fault的处理过程需要硬件和OS内核协作
+
+  1. CPU生成一个虚拟地址VA, 提交给MMU
+  2. MMU通过VA的VPN和PTBR得到PTE地址PTEA, 从Cache/Memory请求之
+  3. Cache/Memory返回PTE数据给MMU
+  4. MMU察觉PTE中的valid bit是0, 触发一次exception. 将控制从CPU中传递到OS的Page Fault Handler
+  5. Handler决定物理内存中的Victim Page, 并执行Write Back (Paging out)
+  6. Handler从磁盘上Page in新的页面到物理内存, 更新PTE
+  7. Handler返回到原进程, 从新执行导致缺页的命令, 执行Page hit
 
 ## 9 Dynamic Memory Allocator
 
