@@ -984,7 +984,207 @@ void *sum_array(void *vargp)
 
 ## 7. Other Concurrency Issues
 
+任何并发流操作共享资源会出现的问题
 
+### 7.1 Thread Safety
 
+Thead-safe iff 多线程并发调用函数总产生正确的结果(同串行一样)
 
+共有四类线程不安全的函数类型
 
+#### Class 1: _Functions that do not protect shared variables_
+
+- 对未受保护(没有互斥锁)的共享变量进行读写是不安全的. 
+- 要使用PV操作来保护共享变量
+- 不需要对调用过程的任何修改
+- 但是同步处理会减慢程序的执行时间
+
+#### Class 2: _Functions that keep state across multiple invocations_
+
+  e.g. 伪随机数生成
+
+```c
+unsigned int next = 1;
+/* rand – return pseudo-random int on 0..32767 */
+int rand(void) 
+{
+    next = next * 110351524 + 12345 ;
+    return (unsigned int)((next/65536) % 32768);
+}
+/* srand – set seed for rand() */
+void srand(unsigned int seed)
+{
+    next = seed;
+}
+```
+
+- 每一次调用依赖于上一次调用的结果.
+- 单线程多次调用可以预期一个可重复的随机数序列
+- 多线层并发调用, 则序列不定
+- 只能改写修订
+  - 不再使用静态数据
+  - 依靠caller在参数中传递状态信息
+
+#### Class 3: _Functions that return a pointer to a static variable_
+
+例如ctime和gethostbyname. 
+
+- 经计算结果存放在一个静态变量中并返回指向变量的指针.
+- 在多线程并发的时候会导致线程间的结果互相覆盖
+
+修正
+
+- 重写函数为: caller传递存放结果的地址
+
+- 利用lock-and-copy, 将不安全函数的调用与互斥锁配合使用
+
+- 例如ctime的包装版本
+
+  ```c
+  char *ctime_ts( const time_t timep, char *privatep) 
+  {
+      char *sharedp;
+  
+      P(&mutex);
+      sharedp = ctime(timep);
+      strcpy(private, sharedp) ;
+      V(&mutex);
+      return privatep;
+  }
+  ```
+
+#### Class 4: _Functions that call thread-unsafe funtions_
+
+f call g:
+
+- g如果是第二类: f一定是不安全的
+- g如果是第一类或者是第三类: f利用互斥锁封装g, 则f是安全的
+
+### 7.2 Reentry
+
+- Reentry的函数在被多个线程调用时不会引起任何共享数据
+
+  ![image-20190624092854917](Chp12ConcurrentProgramming.assets/image-20190624092854917.png)
+
+- Reentry函数更高效, 不需要同步操作
+
+- 将第二类不安全函数转化为安全的唯一方式就是重写之为reentry的
+
+  rand函数的reentry版本
+
+  ```c
+  int rand_r(unsigned int *nextp)
+  {
+    *nextp = *nextp * 1314245134 + 23415;
+    return (unsigned int)(*nextp / 31515)%45151
+  }
+  ```
+
+- 函数参数是pass by value的, 且数据引用都是栈上的, 那么函数是显式reentry的. 如何调用都是reentry的
+
+- 如果是pass  by reference, 则函数式隐式reentry的, 调用时要传入非共享指针
+
+- reentry是caller和callee双方的属性
+
+### 7.3 Using Existing Library Functions in Thread Programs
+
+- 所有standard c lib中的函数都是thread-safe的
+- 大多数Unix的syscall是thread-safe的
+
+![image-20190624100501287](Chp12ConcurrentProgramming.assets/image-20190624100501287.png)
+
+- 第三类的修正可以用互斥锁, lock-and-copy
+  - 降低速度
+  - 深拷贝
+
+### 7.4 Races
+
+- 竞争: 程序的正确执行依赖于 其中一个线程到达x时, 另一个线程还未达到y点 
+
+- 竞争的发生是因为programmer假定了状态空间中特定的轨迹线
+
+- e.g.
+
+  ```c
+  #define N 4
+  int main()
+  {
+      pthread_t tid[N];
+      int i ;
+      for ( i=0 ; i<N ; i++ )
+         pthread_create(&tid[i], NULL, thread, &i);
+      for ( i=0 ; i<N ; i++ )
+         pthread_joint(tid[i], NULL) ;
+      exit(0) ;
+  } 
+  /*thread routine */
+  void *thread(void *vargp)
+  {
+      int myid = *((int *)vargp) ;
+      printf(“Hello from th. %d\n”, myid);
+      return NULL ;
+  }
+  ```
+
+  output
+  
+  ```bash
+  linux> ./race
+  Hello from thread 1
+  Hello from thread 3
+  Hello from thread 2
+  Hello from thread 3
+  ```
+  
+  - 对等线程和主线程之间产生了竞争
+    - line7创建线程时, 传递了栈上的变量i的指针
+    - line15复制语句和line6的i++语句存在竞争
+      - 复制必须在下一次循环开始前完成, 来得到正确的myid
+      - 执行顺序依赖于系统调度
+  - 消除竞争, 动态为传入参数分配内存, 由线程释放
+  
+  ```c
+  int main()
+  {
+      pthread_t tid[N];
+      int i, *ptr ;
+      for ( i=0 ; i<N ; i++ ) {
+         ptr = malloc(sizeof)int));
+         *ptr = i ;
+  		 	 pthread_create(&tid[i], NULL, thread, ptr);
+      }
+      for ( i=0 ; i<N ; i++ )
+         pthread_joint(tid[i], NULL) ;
+      exit(0) ;
+  } 
+  ```
+
+### 7.5 Deadlock
+
+- 死锁: 某一组线程被阻塞了, 并且在等待一个永远也不为真的条件
+
+  ![image-20190624105740171](Chp12ConcurrentProgramming.assets/image-20190624105740171.png)
+  - PV操作的顺序不对, 导致禁止区有重叠
+    - 在每个线程都在等待其他其他线程执行一个不可能的V操作
+  - 轨迹线进入死锁区就无法离开
+  - 死锁的发生依赖于调度过程(特等的轨迹线)
+
+- 二元互斥Semaphores
+
+  - 互斥锁加锁顺序规则: 
+
+    每个线程P操作不同的Semaphore时, V操作的Semaphore必须与P操作相反
+
+    P(a), P(b)  <=> V(b), V(a)
+
+- e.g.
+
+  初始时 s = 1; t = 0.
+
+  Thread1: P(s) V(s) P(t) V(t)
+
+  Thread2: P(s) V(s) P(t) V(t)
+
+  ![image-20190624111546004](Chp12ConcurrentProgramming.assets/image-20190624111546004.png)
+
+  某个Semaphore初始为0时, 则其禁止区是进程禁止区的并集
