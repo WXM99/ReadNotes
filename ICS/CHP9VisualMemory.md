@@ -310,7 +310,217 @@ OS分配一个新的VP时, 更新对用PTE使其地址指向磁盘上的Page
   6. Handler从磁盘上Page in新的页面到物理内存, 更新PTE
   7. Handler返回到原进程, 从新执行导致缺页的命令, 执行Page hit
 
-## 9 Dynamic Memory Allocator
+### 6.1 Integrating Cache and VM
+
+访问SRAM中的数据, 使用VA还是PA?
+
+- 大多数系统使用PA
+- 使用PA时, 多个进程可以共享SRAM Cache
+- SRAM不需要处理保护问题: 权限在MMU进行地址翻译时检查
+
+![image-20190624234831966](Chp9VisualMemory.assets/image-20190624234831966.png)
+
+- 先做MMU的地址翻译, 再向L1做缓存查找
+- MMU访问PTE也是可以被L1缓存的
+
+### 6.2 Speeding Up Address Translation with a TLB
+
+当CPU产生一个虚拟地址时, MMU就必须向内存中的Page Table请求查阅一个PTE来得到物理内存. 当L1 Miss时, 开销增长到几百周期
+
+- MMU中包括了一个关于PTE的小缓存, Translation Lookaside Buffer. TLB
+
+  - TLB是一个小容量, 虚拟地址寻址的缓存
+
+  - 每一行保存一个有单个PTE组成的block
+
+  - TLB具有高的associativity
+
+  - TLB查找的组选择和行匹配索引是从VA得到的
+
+    ![image-20190625000852119](Chp9VisualMemory.assets/image-20190625000852119.png)
+
+    - 设TLB有 T = 2^t^ 个组
+      - TLBI(index)由VPN的低t位构成
+      - TLBT(tag)有VPN的剩余组成
+
+- TLB Hit (所有步骤均在MMU高速进行)
+
+  ![image-20190625001246367](Chp9VisualMemory.assets/image-20190625001246367.png)
+
+  1. CPU产生一个虚拟地址VA
+  2. MMU根据VA的VPN在TLB中查找
+  3. TLB返回查找到的PTE
+  4. MMU根据PTE获取物理地址PA, 向Cache/Memory请求数据
+  5. Cache/Memory返回数据给CPU
+
+- TLB Miss
+
+  ![image-20190625001548082](Chp9VisualMemory.assets/image-20190625001548082.png)
+
+  ...
+
+  3. TLB中未找到对应PTE, MMU直接通过PTBR向内存/Cache请求PTE
+  4. 内存/Cache返回PTE, TLB得到更新, MMU得到翻译PA
+
+  ...
+
+- 综合TLB和Cache
+
+  ![image-20190625002421849](Chp9VisualMemory.assets/image-20190625002421849.png)
+
+### 6.3 Multi-Level Page Tables
+
+虚拟地址空间太大导致single page table太大(64位达到512G)
+
+- 利用分级页表压缩
+
+  ![image-20190625010812792](Chp9VisualMemory.assets/image-20190625010812792.png)
+
+  - 一级页表: 每一个PTE对应VAS中连续的chunk的物理基地址
+  - 二级页表: 对应一个chunk, 每个PTE对应一个VP
+
+- 减少内存要求:
+
+  - 如果一级页表中某个PTE是空的, 那么对应的二级页表不会再内存中存在
+  - 只有一级页表是常驻内存的, 二级页表可以在需要时创建, 调入, 热度访问
+
+- 多级规则
+
+  ![image-20190625011946852](Chp9VisualMemory.assets/image-20190625011946852.png)
+
+  - VA被划分为多个VPN, 每一个对应一级页表
+  - 最低级页表PTE包含对应PPN或是磁盘地址
+  - MMU必须多次访问PTE来获取PPN
+  - PPO和VPO相同
+  - 多级访问开销不大, TLB可以优化
+
+## 7. The Intel Core i7/Linux Memory System
+
+Pentium
+
+- **32** **bit address space**
+
+  -  **4 KB page size**
+
+  -  **L1, L2, and TLBs**
+
+    • **4-way set associative**
+
+     **inst** **TLB**
+
+  • **32 entries**
+
+  • **8 sets**
+
+   **data TLB**
+
+  • **64 entries**
+
+  • **16 sets**
+
+   **L1** **i** **- cache and d-cache**
+
+  • **16 KB**
+
+  • **32 B line size**
+
+  • **128 sets**
+
+   **L2 cache**
+
+  • **unified**
+
+  • **128 KB -- 2 MB**
+
+  • **32 B line size**
+
+![image-20190625101722240](Chp9VisualMemory.assets/image-20190625101722240.png)
+
+Intel Core i7
+
+- Haswell
+- 48-bit VAS
+- 52-bit PAS
+- Processor package
+  - 4 cores
+    - Hierarchy of TLBs
+      - 4-way set associativity
+    - Hierarchy of d-Caches
+    - Hierarchy of i-Caches
+    - QuickPath Interconnect
+    - L2: 256KB, 8-way
+  - one shared L3: 16-way
+  - DDR3 memory controller
+
+![image-20190625101921569](Chp9VisualMemory.assets/image-20190625101921569.png)
+
+### 7.1 Core  i7 Address Translation
+
+- 从CPU产生VA开始, 直到数据送回到CPU
+- Core i7采用四级页表, 每个进程页表私有
+- 允许页表paging in and out, 但是与allocated page相关的页表常驻内存
+- CR3 controll register指向第一级页表的起始位置
+- CR3是进程私有的, 属于进程context
+
+![image-20190625102427716](Chp9VisualMemory.assets/image-20190625102427716.png)
+
+#### PTE in Level1 2 3
+
+![image-20190625103100308](Chp9VisualMemory.assets/image-20190625103100308.png)
+
+- P: 下一级页表是否存在于DRAM中, 0位不存在
+- R/W: 对于所有可访问的页(子表), 只读 或者 读写权限
+- U/S: 对于所有可访问的页(子表), 用户或者 sup访问权限
+- W/T: 下一级页表 writeback或者 writethrough缓存策略
+- CD: 能不能缓存子页表
+- A: 引用位(MMU在读写时设置, 软件擦除)
+- PS: 页的大小
+  - level1: 512G
+  - level2: 1G
+  - level3: 2MB
+- G: global page (don’t evict from TLB on task switch)
+- Base addr: 子页表的物理基地址(PPN 40-bit), 要求4KB对齐
+- XD: 是否允许从PTE对应Page取出指令执行
+
+#### PTE in Level4
+
+![image-20190625104440002](Chp9VisualMemory.assets/image-20190625104440002.png)
+
+- XD: 是否允许从PTE对应Page取出指令执行
+
+- Base addr: 子页的物理基地址(PPN 40-bit), 要求4KB对齐
+
+- G: global page (don’t evict from TLB on task switch)
+
+- D: Dirty bit (Set by MMU on writes, cleared by software)
+
+- A: 引用位(MMU在读写时设置, 软件擦除)
+
+- CD: Cache disabled(1) or enabled(0) for child page table
+
+- WT: Write-through or write-back cache policy
+- U/S: User or supervisor(kernel) mode access permission
+- R/W: Read-only or read-write access permissiom
+- P: Child page table present in memory(1) or not(0)
+
+64位系统还具有XD: 禁止执行, 用来禁止某些内存页代码的执行, 降低了buffer overflow的攻击风险
+
+MMU翻译时更新handler会用的bit. A用来做替换算法, D确定是否写回. 内核也可以修改这些位
+
+![image-20190625110240265](Chp9VisualMemory.assets/image-20190625110240265.png)
+
+i7的MMU将VA划分为 9+9+9+9 + 12
+
+- 每个9位的VPN是每一级页表的偏移量
+- CR3拥有第一级页表的基地址(物理)
+- 每一级页表PTE对应页的虚拟空间大小不同
+  - VAS: 2^48^B
+  - L1:  2^48^B / 2^9^PTE = 2^39^ B/PTE = 512GB/PTE
+  - L2: 2^39^B / 2^9^PTE = 2^30^B/PTE = 1GB/PTE
+  - L3: 2^30^PTE / 2^9^PTE = 2^21^B/PTE = 2MB/PTE
+  - L4: 2^21^PTE/ 2^9^PTE = 2^12^B/PTE = 4KB/PTE
+
+## 9. Dynamic Memory Allocator
 
 > 分配程序运行中需要的额外内存
 >
