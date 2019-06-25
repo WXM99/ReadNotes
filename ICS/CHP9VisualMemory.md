@@ -599,7 +599,196 @@ MMU在翻译时, 察觉到从TLB或者Cache/Memory得到PTE中valid bit是0. 触
 
 ## 8. Memory Mapping
 
+- Memory Mapping: Linux通过关联VM-Area和磁盘上的obj来初始化VM-Area的内容. obj可以是
 
+  - Linux文件系统中的普通文件: 
+
+    一个Area可以映射到一个普通磁盘文件的连续部分. 例如Executable obj file.
+
+    - section被分成页大小的片, 每一片对应一个VP的初始内容
+    - 这些对应的VP按需调度, 没有实际进入物理内存
+    - CPU第一次引用VP时(读取一个VA在VP上)才会paging in
+    - 如果文件小于Area, 剩余部分用0填充
+
+  - Anonymous file:
+
+    一个Area可以映射到一个匿名文件. 
+
+    - 匿名文件由内核创建, 包含全是二进制的0
+    - CPU第一次引用匿名页面时, 内核在物理内存中找到一个牺牲页
+    - 用二进制的0覆盖PP, 同时更新Page Table, 标记为Cached
+    - 这些匿名文件对应的PP也叫demand-zero page
+
+- 一旦VP被初始化了, 就会在内核维护的swap file和内存之间被交换
+
+  swap file也叫swap space或者swap area, 限制进程能分配的VP总数
+
+- Demand Paging
+
+  - 所有初始化的VP只有在被引用的时候才会被物理内存Paging in
+
+### 8.1 Shared Objects Revisited
+
+将VMsys和传统文件系统相集成, name把程序和数据文件Load到内存中会更高效和方便
+
+- 进程的抽象让VAS相互独立, 保护进程安全
+
+- 不同的进程有相同的rodata(只读代码区域), 例如库代码
+
+- Memory Mapping提供进程共享对象的机制
+
+  - 一个对象被映射到VM中的一个area, 要么是共享的, 要么是私有的
+  - 进程映射一个共享对象到VM-Area, 对其的更改对其他映射过得进程可见, 也会修改磁盘上的原始对象
+  - 进程对私有对象在的区域做改变, 其他进程不可见, 且不会反映到磁盘对象上
+  - 映射共享对象的Area为共享Area, 反之为私有Area
+
+  ![image-20190625212403432](Chp9VisualMemory.assets/image-20190625212403432.png)
+
+  - 进程1讲一个共享对象到其VM的一个Area中 
+
+    ![image-20190625212500919](Chp9VisualMemory.assets/image-20190625212500919.png)
+
+  - 进程2对相同的对象做映射(VA可以不同)
+
+  - 每个对象文件名唯一, 内核可以使进程2的PTE直接指向对应PP
+
+  - 共享对象被映射到了多个VAS的area中, 但在物理内存中只有一个副本
+
+  - 该对象在物理内存中的PP也不一定是连续的
+
+  - 但是VP和磁盘内容是连续的
+
+- 私用对象运用Copy-on-write COW技术映射到VM中
+
+  - 当一个进程映射了, 另一个进程也映射了, 则他们对应同一个物理内存副本
+  - 私有对象进程对私有区域的PTE是只读的
+  - 私有Area的vm_area_structs的flag是 private COW的
+  - 没有进程改写私有area时, 所有进程共享物理内存的单一副本
+  - 某一个进程改写私有Area的VP时, 写操作触发protection fault
+    - handler检测到fault由进程写私有Area的VP引起的
+    - handler在物理内存中为VP在物理内存创建一个新的PP副本
+    - 更新进程的PTE指向新的PP副本, 恢复可写权限
+    - CPU重新执行写操作
+
+  ![image-20190625213906836](Chp9VisualMemory.assets/image-20190625213906836.png)
+
+### 8.2 The `fork` Function Revisited
+
+fork创建带有独立VM的新进程
+
+- fork被父进程调用,  内核会为子进程创建相关数据结构, PID
+- 创建属于子进程的VAS, 创建父进程的mm_struct,vm_area_struct,
+  and page tables的原样副本
+- 将父子进程的每个VP标记为只读, 每个area标记COW
+- fork返回后, 子进程的VAS和父进程一致且有相同的PP副本
+- 两个进程之后的任何写操作都会导致COW创建新的PP, 因此每个进程VAS独立
+
+### 8.3 The `execve` Function Revisited
+
+execve在当前进程加载指向一个可执行的目标文件, 替代当前进程
+
+- 删除原进程VM中的用户Area
+
+- 映射私有Area: 为新程序的代码, 数据, bss, 栈区域创建新的vm_area_struct. 并且都标记为私有COW, 创建新的Page Table
+
+  - 代码段: .text
+  - 数据段: .data
+  - bss: demand-zero, 映射匿名文件
+  - 堆和栈也是demand-zero, 但是初始长度是0
+
+  ![image-20190625215922366](Chp9VisualMemory.assets/image-20190625215922366.png)
+
+- 映射共享area: 将一些共享库映射到进程VM的共享Area
+
+- 设置PC: 将PC设置为新进程的程序入口(.text入口)
+
+### 8.4 User-Level Memory Mapping with the `mmap` Function
+
+mmap是一个syscall, 要求内核在当前进程的VAS中创建新的Areas, 用来连续地映射文件 
+
+```c
+#include <unistd.h>
+#include <sys/mman.h>
+void *mmap(void *start, 
+           int len, 
+           int prot, 
+           int flags, 
+           int fd, 
+           int offset);
+```
+
+成功返回指向映射区域的通用指针, 出错为MAP_FAILED(-1)
+
+![image-20190625222230248](Chp9VisualMemory.assets/image-20190625222230248.png)
+
+- 映射的地址最好从start开始
+
+- 被映射的的文件是fd指定的对象的连续的chunk
+
+- 连续对象大小事len Byte
+
+- 距离文件头的偏移量是offset
+
+- start的地址不是强制的, 通常是NULL
+
+- prot是映射到的VAS中Area的访问权限(vm_area_structs的vm_prot bits)
+
+  - PROT_EXEC: 区域内的page由可以被CPU执行的指令组成
+  - PROT_READ: 区域内的页面可读
+  - PROT_WRITE: 区域内的页面可写
+  - PROT_NONE: 区域内的页面不能被访问
+
+- flags描述被映射对象类型的位组成
+
+  - MAP_ANON: 被映射的是匿名对象, 对应的VP是0
+  - MAP_PRIVATE: 被映射的对象是私有COW的
+  - MAP_SHARED: 被映射的是共享对象
+
+  ```c
+  bufp = Mmap(NULL, size, PROT_READ, MAP_PRIVATE|MAP_ANON, 0, 0);
+  ```
+
+- 利用`mmap`做fast file copy: 避免使用用户空间传输文件
+
+  ```c
+  /* 
+   * mmapcopy - uses mmap to copy file fd to stdout
+   */
+  void mmapcopy(int fd, int size)
+  {
+    char *bufp;
+    /* map the file to a new VM area */
+    bufp = mmap(NULL, size, PROT_READ, 
+                MAP_PRIVATE, fd, 0);
+    /* write the VM area to stdout */
+    write(1, bufp, size);
+    return ;
+  }
+  
+  int main(int argc, char **argv) 
+  {
+    struct stat stat;
+    /* check for required command line argument */
+    if ( argc != 2 ) {
+      printf(“usage: %s <filename>\n”, argv[0]);
+      exit(0) ;
+    }
+    /* open the file and get its size*/
+    fd = open(argv[1], O_RDONLY, 0);
+    fstat(fd, &stat);
+    mmapcopy(fd, stat.st_size);
+  }
+  ```
+
+  快速在于只读的Area buf实际与打开的文件共享一份物理内存副本
+
+- `munmap`函数删除VM中的area, 变为间隙
+
+  ```c
+  #include <unistd.h>
+  #include <sys/mman.h>
+  int munmap(void *start, size_t len);
+  ```
 
 ## 9. Dynamic Memory Allocator
 
