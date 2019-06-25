@@ -520,6 +520,87 @@ i7的MMU将VA划分为 9+9+9+9 + 12
   - L3: 2^30^PTE / 2^9^PTE = 2^21^B/PTE = 2MB/PTE
   - L4: 2^21^PTE/ 2^9^PTE = 2^12^B/PTE = 4KB/PTE
 
+#### Speeding Up L1 Access
+![image-20190625143627792](Chp9VisualMemory.assets/image-20190625143627792.png)
+
+MMU在翻译PA的同时, 将VPO送达到 L1 Cache
+
+- L1 Cache是8-way 64Byte-Cacheline, 64set, 
+- 12位的VPO恰好可以同时在L1 Cache上查找到一个set的一组字(特定offset)
+- MMU得到PPN后发送到L1 Cache, L1 Cache只需要把PPN作为CT与查找到的8个Tag比对
+
+### 7.2 Linux Virtual Memory System
+
+硬件与内核软件的紧密协作
+
+- Linux为每个单独的进程维护一个VAS
+
+  ![image-20190625143511909](Chp9VisualMemory.assets/image-20190625143511909.png)
+
+  - Kernel Virtual Memory在用户栈上, 包含内核的代码和数据结构
+  - 不同进程VAS中, KVM使用某些的VA将会被映射到所有进程共享的PP上
+  - Linux将一组连续的VP映射到对应连续的PP上
+    - 为内核提供访问任何物理位置的方法
+  - 内核的其他区域是进程间不同的
+
+#### Linux Virtual Memory Areas
+
+VM是area(section)的集合
+
+- 一个area是allocated的VP的连续片 — chunk
+
+  - chunk的VP之间关联: .data .text heap shared-lib stack
+  - 每个VP都在一个Area中
+  - Area使得VAS之间有间隙, 而内核不用记录间隙, 间隙没有资源开销
+
+- KVM的内核数据结构
+
+  ![image-20190625163643678](Chp9VisualMemory.assets/image-20190625163643678.png)
+
+  - 内核为每个进程维护一个单独的task_struct entry
+
+    - tusk_struct包含内核运行该进程的所有信息 (PID, %rsp, PC…)
+
+  - task_struct的一个entry指向mm_struct
+
+    - mm_struct描述了VM的当前状态
+
+    - pgd字段: 指向第一级页表的基地址(PA)
+
+      内核运行该进程时, 将pgd放入CR3
+
+    - mmap字段: 指向vm_area_structs的链表
+
+    - vm_area_structs描述了当前VAS的一个area
+
+      - vm_start: area的开始处
+      - vm_end: area的结束处
+      - vm_prot: area内部所有VP的读写权限
+      - vm_flags: area内部的VP是与其他进程共享的还是私有的
+      - vm_next: 指向下一个vm_area_structs
+
+#### Linux Page Fault Exception Handler
+
+![image-20190625165920897](Chp9VisualMemory.assets/image-20190625165920897.png)
+
+MMU在翻译时, 察觉到从TLB或者Cache/Memory得到PTE中valid bit是0. 触发一个Page Fault Exception, 控制转移到内核的handler, 开始
+
+1. 判断虚拟地址A是否合法: 
+
+   A是否在Area内部 -- 搜索vm_area_structs链表, 一一比对. 如果A是间隙地址, 则抛出一个segmentation fault, 终止进程
+
+2. 判断内存访问是否合法
+
+   进程是否有读写执行这个area的权限, 权限不足则触发Protection Exception
+
+3. Paging In
+
+   对VA的操作是合法的, 但是VP是Uncached. handler选择牺牲一个page out. Paging in新的VP, 更新page table. handler返回后重启指令 
+
+## 8. Memory Mapping
+
+
+
 ## 9. Dynamic Memory Allocator
 
 > 分配程序运行中需要的额外内存
