@@ -677,7 +677,7 @@ MMU在翻译时, 察觉到从TLB或者Cache/Memory得到PTE中valid bit是0. 触
 fork创建带有独立VM的新进程
 
 - fork被父进程调用,  内核会为子进程创建相关数据结构, PID
-- 创建属于子进程的VAS, 创建父进程的mm_struct,vm_area_struct,
+- 创建属于子进程的VAS, 创建为父进程的mm_struct,vm_area_struct,
   and page tables的原样副本
 - 将父子进程的每个VP标记为只读, 每个area标记COW
 - fork返回后, 子进程的VAS和父进程一致且有相同的PP副本
