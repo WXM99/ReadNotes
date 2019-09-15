@@ -96,9 +96,45 @@ Different parts of the system exhibit different orders of growth
 
 ### Abstraction
 
+#### Software is particularly subject to this problem
+
+- The modular ==boundaries== provided by the separately compiled subprograms are actually somewhat soft
+- Is easily penetrated by errors in:
+  - using pointer;
+  - filling buffer;
+  - calculating array index;
+  - etc.
+
+#### Failure containment
+
+- When a module does not meet its abstract interface specifications
+- Limiting the impact of faults
+  - Well-designed and properly ==enforced modular abstractions== 
+  - Control propagation of effects
+- Modules are the ==units of fault containment==
+
 ### Layering
+
+- Goal: ==Reduce module interconnections== even more
+- How to do it? Bottom-Up
+  - Build a set of mechanisms first (a lower layer)
+  - Use them to create a different complete set of mechanisms (an upper layer)
+- General rule -- A module in one layer only interacts with:
+  - its peers in the same layer, and
+  - modules in the next lower layer / next higher layer
+
+![image-20190915185444392](chp1Into.assets/image-20190915185444392.png)
 
 ### Hierarchy
 
+#### Hierarchy: another module organization
 
+- Start with a small ==group== of modules
+- ==Assemble== them into a stable, self-contained subsystem with well defined interface
+- Assemble a group of subsystems to a larger subsystem
+
+#### Constrains interactions
+
+- Permit ==interaction== only among the components of a ==subsystem==
+- Reduces the number of potential interactions among modules from square-law to linear
 
