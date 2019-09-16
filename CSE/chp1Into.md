@@ -36,7 +36,7 @@
 
 ### Propagation of effects (butterfly effort)
 
-> What looks at first to be a small disruption or a local change can have ==effects that reach from one  end of a system to the other==.
+> What looks at first to be a small disruption or a local change can have ==effects that reach from one end of a system to the other==.
 
 ### Incommensurate scaling (proof of no-giant)
 
