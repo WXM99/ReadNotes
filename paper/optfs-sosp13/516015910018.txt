@@ -1,0 +1,49 @@
+Q1: What problem does this paper want to solve? In one sentence.
+
+A1: How to design and implement a new file system that obtains 
+    both a high level of CONSISTENCY and excellent PERFORMANCE.
+
+
+Q2: What is Asynchronous Durability Notification? Why is it use-
+    ful for implementing optimistic crash consistency?
+
+A2: A.D.N is a message sent from the disk to the upper-level cli-
+    ent that a specific write request has completed and is now 
+    guaranteed to be durable. 
+      It is asynchronous for the message is sent when the commit 
+    block to journal (Jc) has been written to its in-place loca-
+    tion durably rather than the checkpoint of the matedata(M) nor
+    the data blocks(D).
+      Having been recieved this message, the file system can asset
+    that the write request has been durable, no matter if crushes 
+    will happen from now on. In this way, the file system could be
+    confident enough to process the writing of metadata of this re-
+    quest and following transactions.
+      It is a useful techique for it loosens the strict ordering 
+    constrain in previous file system, witch is D -> Jm -> Jc -> M 
+    and is implemented by expensive flushes (for 3 times).
+      With A.D.N involved, the ordering is relaxed as: M:i fall be-
+    hind (D:i|Jm:i|Jc) and (M:i+1). The relaxed order constrain ask
+    for no constrain about journal write, providing flexibility to 
+    disk to achieve a better schedule. Moreover, A.D.N gives file
+    system infomation to make independent writes proceed while de-
+    pendent writes held back to keep consistency.
+
+
+Q3: Why does this paper propose two sync-related calls (osync and 
+    dsync)?  Please give some examples where osync or dsync is sui-
+    table, respectively.
+
+A3: In some situation, application using file system wishes to FORCE
+    writes to the stable storage orderly. OptFS provide these two
+    calles to fit that demand by A.D.N (osync) and flush (dsync).
+      - osync examples: 
+          1. Rename a file;
+          2. Unlink a file; 
+          3. Append log of a runing system;
+          4. Atomic update file in a text editor;
+      - dsync examoles:
+          1. Close and save a file;
+          2. FSCK;
+          3. Transaction commits in database;
+          4. File updates in email server;
