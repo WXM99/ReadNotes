@@ -1,0 +1,77 @@
+Question 1: Please briefly answer the role of DNS in your own words.
+
+A1: DNS is a globally distributed system composed by many name servers. Everytime before a network request is to be sent to the domain name, the client will firstly turn to DNS to get the corresponding IP of the domain name. Only by the IP witten in the request, can it be sent to the right server by under layer network facilities, namely router and switch.
+
+==========================================================================================
+
+Question 2: The type field have a few different values to indicate the kind of this record. What do "A", "NS" and "CNAME" mean?
+
+A2: "A" is for the answer IP to which the domain name points; "NS" is for the name of  another name server that the original one turns to during a recursive lookup; "CNAME" is the domain name to which the original one points, both the domain names share a common IP, like a "soft link".
+
+==========================================================================================
+
+Question 3: How can we ask a specific dns server (instead of the default) for information about a domain name? When I use "dig www.baidu.com",the DNS server is 192.168.110.2. However if this server crashed and I have to ask the server 8.8.8.8, what command should I use?
+
+A3: Using at "@specific.dns.server" parameter in dig commond. Like, "dig @8.8.8.8 www.baidu.com".
+
+==========================================================================================
+
+Question 4: Do you know the process of solving domain name "lirone.csail.mit.edu"? You need to go through the steps of resolving a particular hostname, mimicing a standard recursive query. Assuming it knows nothing else about a name, a DNS resolver will ask a well-known root server. The root servers on the Internet are in the domain root-servers.net. You can use "%dig . ns" to get the list of 13 root servers.You can show us the result of each step or briefly introduce your idea.[Hint: you should start from "edu"]
+
+A4: Doing a 4-layer-depth DFS in the DNS
+pseudocode:
+list rootAnswers[];
+rootAnswers <- (dig . ns).getAnswers()
+foreach rootDNS in rootAnswers
+  list eduAnswers[]   
+  eduAnswers <- (dig NS edu. @rootDNS).getAuthorities()
+  foreach eduDNS in eduAnswers
+    list mitAnswers[]
+    mitAnswers <- (dig NS mit.edu. @eduDNS).getAuthorities()
+    foreach mitDNS in mitAnswers
+      list csailAnswers[]
+      csailAnswers <- (dig NS csail.mit.edu. @mitDNS).getAuthorities()
+      foreach csailDNS in csailAnswers
+        list answerIPs[]
+        answerIPs <- (dig answers +short lirone.csail.mit.edu. @csailDNS)
+        if (anserIPs is not void) then
+          output anserIPs
+        endif
+      endfor
+    endfor
+  endfor
+endfor
+output "not found"
+
+==========================================================================================
+
+Question 5: Please explain the above phenomenon. Have a guess!
+
+A5:
+  I. 
+  "dig www.baidu.com +trace": 
+    0. get root dns servers;
+    1. lookup 'com.' in root dns servers, get gtld servers;
+    2. lookup 'baidu.com.' in gtld dns servers, get baidu's name servers;
+    3. lookup 'www.baidu.com' in baidu's name severs, redirect to name "www.a.shifen.com";
+    4. lookup 'www.a.shifen.com' in ns.a.shifen.com name server;
+    5. get answer IPs.
+  "dig www.twitter.com +trace": 
+    0. get root dns servers;
+    1. lookup 'com.' in root dns servers, return an answer;
+    2. get gtld server, look up 'twitter.com.' return answer; (occasionally)
+  Difference between is that baidu function normally as a recursive DNS lookup while twitter just return a answer when lookup in the root name servers or the dtld name servers. 
+  Guess: the lookup request was sent to root name server or gtld name server which will return a answer right away once detected the forbbiden domain name.
+  II.
+  "dig www.twitter.com @1.0.0.0": return various IP everytime;
+  "dig www.baidu.com @1.0.0.0": connection timed out; no servers could be reached;
+  1.0.0.0 exists and can be pinged. 
+  Guess: According to the "list of assigned /8 IPv4 address blocks", 1.0.0.0 was assigned to APNIC and located in Australia but not used as a name server. In this WAN (within China), 1.0.0.0 may be redirected to a special name server that keeps the fake IP addresses of some forbbiden domain names to block the request to thoes forbbiden websites. 
+  III.
+  "dig www.twitter.com +trace" return the answer directly from a root name server sometimes while may also return from a gtld name server but never return from a twiiter's name server.
+
+==========================================================================================
+
+Question 6: The ips which dig returns to you belong to google indeed. Give the reason for the above phenomenon.
+
+A6: Packages sent to thoes IPs were blocked in a router and discarded.
