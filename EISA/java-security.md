@@ -84,7 +84,8 @@
   }
   ```
 
-  
-
 ## 4. User Authentication
 
+History:
+
+- Java SE 1.4: JAAS
