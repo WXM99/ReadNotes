@@ -89,3 +89,7 @@
 History:
 
 - Java SE 1.4: JAAS
+- grant principal
+
+- grant by signed by
+
